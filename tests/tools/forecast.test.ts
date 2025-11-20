@@ -20,7 +20,7 @@
  * and show what errors are returned for invalid ones.
  */
 
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { forecast, FORECAST_TOOL } from '../../src/tools/forecast.js';
 import * as clientModule from '../../src/utils/client.js';
 
@@ -40,23 +40,55 @@ function createValidForecastRequest(overrides = {}) {
 }
 
 describe('forecast tool', () => {
-  /**
-   * Real client initialization for testing
-   *
-   * We use a real client connection to the FAIM server.
-   * This requires FAIM_API_KEY environment variable to be set.
-   */
-  beforeAll(() => {
-    // Reset the client module state
-    clientModule.resetClient();
+  let mockClient: {
+    forecastChronos2: ReturnType<typeof vi.fn>;
+    forecastTiRex: ReturnType<typeof vi.fn>;
+  };
 
-    // Initialize with real client connection
-    // This connects to the actual FAIM server
-    clientModule.initializeClient();
+  function createSdkSuccess(
+    options: { outputType?: 'point' | 'quantiles'; modelName?: string } = {}
+  ): { success: true; data: any } {
+    const { outputType = 'point', modelName = 'chronos2' } = options;
+    const metadata = {
+      model_name: modelName,
+      model_version: '1.0.0',
+      token_count: 42,
+    };
+
+    if (outputType === 'quantiles') {
+      return {
+        success: true as const,
+        data: {
+          outputs: {
+            quantiles: [[[[0.1], [0.2]]]],
+          },
+          metadata,
+        },
+      };
+    }
+
+    return {
+      success: true as const,
+      data: {
+        outputs: {
+          point: [[[1], [2], [3]]],
+        },
+        metadata,
+      },
+    };
+  }
+
+  beforeEach(() => {
+    mockClient = {
+      forecastChronos2: vi.fn().mockResolvedValue(createSdkSuccess()),
+      forecastTiRex: vi.fn().mockResolvedValue(createSdkSuccess({ modelName: 'tirex' })),
+    };
+
+    vi.spyOn(clientModule, 'getClient').mockReturnValue(mockClient as any);
   });
 
-  afterAll(() => {
-    // Clean up is handled by the client module
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   /**
@@ -199,10 +231,8 @@ describe('forecast tool', () => {
 
     const result = await forecast(request);
 
-    // Request is valid, result depends on API response
-    if (!result.success) {
-      expect(result.error.error_code).not.toBe('INVALID_PARAMETER');
-    }
+    expect(mockClient.forecastTiRex).toHaveBeenCalledTimes(1);
+    expect(result.success).toBe(true);
   });
 
   /**
@@ -267,11 +297,11 @@ describe('forecast tool', () => {
 
     const result = await forecast(request);
 
-    // Validation should pass even if client fails
-    expect(result.success).toBe(false); // Client error, not validation
-    if (!result.success) {
-      expect(result.error.error_code).not.toBe('INVALID_PARAMETER');
-    }
+    expect(result.success).toBe(true);
+    const expectedX = [[[1], [2], [3], [4], [5]]];
+    expect(mockClient.forecastChronos2).toHaveBeenCalledWith(
+      expect.objectContaining({ x: expectedX })
+    );
   });
 
   it('should accept 2D array input (multivariate)', async () => {
@@ -283,8 +313,11 @@ describe('forecast tool', () => {
 
     const result = await forecast(request);
 
-    // Validation should pass
-    expect(result.success).toBe(false); // Client error
+    expect(result.success).toBe(true);
+    const expectedX = [[[1, 2], [3, 4], [5, 6]]];
+    expect(mockClient.forecastChronos2).toHaveBeenCalledWith(
+      expect.objectContaining({ x: expectedX })
+    );
   });
 
   it('should accept 3D array input', async () => {
@@ -296,8 +329,10 @@ describe('forecast tool', () => {
 
     const result = await forecast(request);
 
-    // Validation should pass
-    expect(result.success).toBe(false); // Client error
+    expect(result.success).toBe(true);
+    expect(mockClient.forecastChronos2).toHaveBeenCalledWith(
+      expect.objectContaining({ x: request.x })
+    );
   });
 
   /**
@@ -316,7 +351,13 @@ describe('forecast tool', () => {
 
     const result = await forecast(request);
 
-    expect(result.success).toBe(false); // Client error
+    expect(result.success).toBe(true);
+    expect(mockClient.forecastChronos2).toHaveBeenCalledWith(
+      expect.objectContaining({ output_type: 'point' })
+    );
+    if (result.success) {
+      expect(result.data.output_type).toBe('point');
+    }
   });
 
   it('should accept quantiles output type', async () => {
@@ -328,9 +369,22 @@ describe('forecast tool', () => {
       quantiles: [0.1, 0.5, 0.9],
     };
 
+    mockClient.forecastChronos2.mockResolvedValueOnce(
+      createSdkSuccess({ outputType: 'quantiles' })
+    );
+
     const result = await forecast(request);
 
-    expect(result.success).toBe(false); // Client error
+    expect(result.success).toBe(true);
+    expect(mockClient.forecastChronos2).toHaveBeenCalledWith(
+      expect.objectContaining({
+        output_type: 'quantiles',
+        quantiles: [0.1, 0.5, 0.9],
+      })
+    );
+    if (result.success) {
+      expect(result.data.output_type).toBe('quantiles');
+    }
   });
 
   it('should reject samples output type (not supported by API)', async () => {
@@ -395,8 +449,10 @@ describe('forecast tool', () => {
 
     const result = await forecast(request);
 
-    // Validation passes, client fails
-    expect(result.success).toBe(false);
+    expect(result.success).toBe(true);
+    expect(mockClient.forecastChronos2).toHaveBeenCalledWith(
+      expect.objectContaining({ horizon: 1 })
+    );
   });
 
   it('should accept maximum valid horizon', async () => {
@@ -408,8 +464,10 @@ describe('forecast tool', () => {
 
     const result = await forecast(request);
 
-    // Validation passes
-    expect(result.success).toBe(false);
+    expect(result.success).toBe(true);
+    expect(mockClient.forecastChronos2).toHaveBeenCalledWith(
+      expect.objectContaining({ horizon: 10000 })
+    );
   });
 
   it('should accept boundary quantile values [0, 1]', async () => {
@@ -421,10 +479,16 @@ describe('forecast tool', () => {
       quantiles: [0, 0.5, 1],
     };
 
+    mockClient.forecastChronos2.mockResolvedValueOnce(
+      createSdkSuccess({ outputType: 'quantiles' })
+    );
+
     const result = await forecast(request);
 
-    // Validation passes
-    expect(result.success).toBe(false);
+    expect(result.success).toBe(true);
+    expect(mockClient.forecastChronos2).toHaveBeenCalledWith(
+      expect.objectContaining({ quantiles: [0, 0.5, 1] })
+    );
   });
 
   it('should be JSON serializable when valid', async () => {
