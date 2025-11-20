@@ -54,7 +54,7 @@ describe('transformError', () => {
 
     expect(result.error_code).toBe('INVALID_API_KEY');
     expect(result.message).toBeDefined();
-    expect(result.details).toContain('API key');
+    expect(result.details).toContain('FAIM_API_KEY');
   });
 
   it('should provide suggestion for rate limit error', () => {

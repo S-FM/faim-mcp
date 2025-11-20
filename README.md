@@ -1,6 +1,6 @@
 # FAIM MCP Server
 
-A production-ready Model Context Protocol (MCP) server that integrates the FAIM time series forecasting SDK with Claude, enabling AI-powered forecasting capabilities.
+A production-ready Model Context Protocol (MCP) server that integrates the FAIM time series forecasting SDK with any MCP-compatible AI assistant, enabling AI-powered forecasting capabilities.
 
 ## Overview
 
@@ -70,6 +70,27 @@ export FAIM_API_BASE_URL="https://api.faim.it.com"
 # Optional: Set to non-production for verbose logging
 export NODE_ENV=development
 ```
+
+## MCP Compatibility
+
+This server implements the **Model Context Protocol (MCP)**, an open protocol for connecting AI assistants to external tools and data sources. MCP is not limited to Claude - it works with any application that implements an MCP client.
+
+### Supported Clients & Platforms
+
+- **Claude Desktop** - Native MCP integration
+- **Claude.ai Web** - Via MCP support
+- **IDE Extensions** - VS Code (Cline), Zed, Continue.dev, and others
+- **AI Agent Frameworks** - LangChain, AutoGPT, CrewAI, etc.
+- **Custom MCP Clients** - JSON-RPC 2.0 over stdio
+- **Any LLM** - Via MCP client implementation
+
+### Using with Any LLM or System
+
+This server implements the standard MCP protocol and works with any application that implements an MCP client:
+- Direct MCP client implementation
+- AI framework adapters that support MCP
+- IDE extensions that expose MCP tools to any LLM
+- Custom middleware that translates between MCP and your LLM's tool calling format
 
 ## Usage
 

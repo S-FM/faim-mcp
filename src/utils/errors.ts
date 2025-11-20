@@ -155,13 +155,20 @@ function transformJavaScriptError(
 ): ErrorResponse {
   const message = error.message || 'Unknown error';
 
+  // Build details with message and optional context
+  const detailParts = [message];
+  if (context?.operation) {
+    detailParts.push(`Operation: ${context.operation}`);
+  }
+  const detailsString = detailParts.join(' | ');
+
   // Check for specific error types by message patterns
   if (isNetworkError(message)) {
     logError('NETWORK_ERROR', message, error);
     return {
       error_code: 'NETWORK_ERROR',
       message: 'Failed to connect to FAIM API. Please check your network connection.',
-      details: message,
+      details: detailsString,
       field: context?.field,
     };
   }
@@ -171,7 +178,7 @@ function transformJavaScriptError(
     return {
       error_code: 'TIMEOUT_ERROR',
       message: 'Request to FAIM API timed out. Try a smaller forecast or longer timeout.',
-      details: message,
+      details: detailsString,
       field: context?.field,
     };
   }
@@ -182,7 +189,7 @@ function transformJavaScriptError(
     return {
       error_code: 'INTERNAL_SERVER_ERROR',
       message: 'An internal error occurred (type error). Please contact support.',
-      details: message,
+      details: detailsString,
       field: context?.field,
     };
   }
@@ -192,7 +199,7 @@ function transformJavaScriptError(
   return {
     error_code: 'INTERNAL_ERROR',
     message: 'An unexpected error occurred',
-    details: `${error.name}: ${message}`,
+    details: `${error.name}: ${detailsString}`,
     field: context?.field,
   };
 }
@@ -200,7 +207,8 @@ function transformJavaScriptError(
 /**
  * Checks if an unknown value is a FAIM SDK error object
  *
- * The SDK returns errors with at least an error_code or message
+ * The SDK returns errors with at least an error_code
+ * (or a plain object with error_code and message, but NOT an Error instance)
  *
  * @internal Type guard for SDK errors
  */
@@ -209,8 +217,14 @@ function isSDKError(error: unknown): boolean {
     return false;
   }
 
+  // Don't treat JavaScript Error instances as SDK errors
+  if (error instanceof Error) {
+    return false;
+  }
+
   const obj = error as Record<string, unknown>;
-  return typeof obj.error_code === 'string' || typeof obj.message === 'string';
+  // Must have error_code to be an SDK error
+  return typeof obj.error_code === 'string';
 }
 
 /**
