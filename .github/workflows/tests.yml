@@ -10,6 +10,9 @@ jobs:
   test:
     runs-on: ubuntu-latest
 
+    env:
+      FAIM_API_KEY: ${{ secrets.FAIM_API_KEY }}
+
     strategy:
       matrix:
         node-version: [18.x, 20.x, 22.x, 24.x]
@@ -35,7 +38,5 @@ jobs:
         run: npm test
 
       - name: Run integration tests
-        env:
-          FAIM_API_KEY: ${{ secrets.FAIM_API_KEY }}
         run: npm run test:integration
         continue-on-error: true
