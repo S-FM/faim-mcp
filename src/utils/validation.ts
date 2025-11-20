@@ -142,10 +142,10 @@ export function validateForecastRequest(request: unknown): ErrorResponse | null 
       };
     }
 
-    if (!['point', 'quantiles', 'samples'].includes(req.output_type)) {
+    if (!['point', 'quantiles'].includes(req.output_type)) {
       return {
         error_code: 'INVALID_PARAMETER',
-        message: 'output_type must be one of: point, quantiles, samples',
+        message: 'output_type must be one of: point, quantiles',
         field: 'output_type',
         details: `Got: ${req.output_type}`,
       };

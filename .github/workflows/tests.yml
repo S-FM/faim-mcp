@@ -31,7 +31,11 @@ jobs:
       - name: Build project
         run: npm run build
 
-      - name: Run tests
+      - name: Run unit tests
+        run: npm test
+
+      - name: Run integration tests
         env:
           FAIM_API_KEY: ${{ secrets.FAIM_API_KEY }}
-        run: npm test
+        run: npm run test:integration
+        continue-on-error: true

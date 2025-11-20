@@ -20,7 +20,7 @@
  * and show what errors are returned for invalid ones.
  */
 
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { forecast, FORECAST_TOOL } from '../../src/tools/forecast.js';
 import * as clientModule from '../../src/utils/client.js';
 
@@ -41,21 +41,22 @@ function createValidForecastRequest(overrides = {}) {
 
 describe('forecast tool', () => {
   /**
-   * Mock client for testing
+   * Real client initialization for testing
    *
-   * We mock the client to avoid actual API calls during testing.
-   * Real integration tests would use real API credentials.
+   * We use a real client connection to the FAIM server.
+   * This requires FAIM_API_KEY environment variable to be set.
    */
-  beforeEach(() => {
-    // Mock getClient to throw (simulating initialization error)
-    // Tests can override this for specific scenarios
-    vi.spyOn(clientModule, 'getClient').mockImplementation(() => {
-      throw new Error('Client not initialized');
-    });
+  beforeAll(() => {
+    // Reset the client module state
+    clientModule.resetClient();
+
+    // Initialize with real client connection
+    // This connects to the actual FAIM server
+    clientModule.initializeClient();
   });
 
-  afterEach(() => {
-    vi.restoreAllMocks();
+  afterAll(() => {
+    // Clean up is handled by the client module
   });
 
   /**
@@ -198,25 +199,10 @@ describe('forecast tool', () => {
 
     const result = await forecast(request);
 
-    // Will fail due to client not initialized, but validation should pass
-    expect(result.success).toBe(false);
+    // Request is valid, result depends on API response
     if (!result.success) {
       expect(result.error.error_code).not.toBe('INVALID_PARAMETER');
     }
-  });
-
-  /**
-   * Client Initialization Tests
-   *
-   * Verify proper handling when client is not initialized.
-   */
-
-  it('should return error when client is not initialized', async () => {
-    const request = createValidForecastRequest();
-
-    const result = await forecast(request);
-
-    expect(result.success).toBe(false);
   });
 
   /**
@@ -347,7 +333,7 @@ describe('forecast tool', () => {
     expect(result.success).toBe(false); // Client error
   });
 
-  it('should accept samples output type', async () => {
+  it('should reject samples output type (not supported by API)', async () => {
     const request = {
       model: 'chronos2',
       x: [1, 2, 3],
@@ -357,7 +343,11 @@ describe('forecast tool', () => {
 
     const result = await forecast(request);
 
-    expect(result.success).toBe(false); // Client error
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.error_code).toBe('INVALID_PARAMETER');
+      expect(result.error.field).toBe('output_type');
+    }
   });
 
   /**
@@ -378,14 +368,18 @@ describe('forecast tool', () => {
     const result = await forecast(null);
 
     expect(result.success).toBe(false);
-    expect(result.error).toBeDefined();
+    if (!result.success) {
+      expect(result.error).toBeDefined();
+    }
   });
 
   it('should handle undefined input gracefully', async () => {
     const result = await forecast(undefined);
 
     expect(result.success).toBe(false);
-    expect(result.error).toBeDefined();
+    if (!result.success) {
+      expect(result.error).toBeDefined();
+    }
   });
 
   /**

@@ -14,7 +14,9 @@
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
-    "test": "vitest",
+    "test": "vitest --exclude tests/integration",
+    "test:integration": "vitest tests/integration",
+    "test:all": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
     "lint": "tsc --noEmit"

@@ -5,7 +5,7 @@
  *
  * This is the main tool for forecasting. It supports:
  * - Multiple models (Chronos2, TiRex)
- * - Multiple output types (point, quantiles, samples)
+ * - Multiple output types (point, quantiles)
  * - Flexible input formats (1D, 2D, 3D arrays)
  * - Custom quantiles for probabilistic forecasting
  *
@@ -165,12 +165,8 @@ export async function forecast(
       const quantiles = (sdkResponse.outputs as any).quantiles as number[][][][];
       forecastData = { quantiles };
       outputArrayShape = getArrayShape(quantiles);
-    } else if (outputType === 'samples') {
-      const samples = (sdkResponse.outputs as any).samples as number[][][][];
-      forecastData = { samples };
-      outputArrayShape = getArrayShape(samples);
     } else {
-      throw new Error(`Unexpected output structure for output_type: ${outputType}`);
+      throw new Error(`Unexpected output type: ${outputType}`);
     }
 
     // Step 7: Build the response
@@ -275,10 +271,10 @@ export const FORECAST_TOOL = {
       },
       output_type: {
         type: 'string',
-        enum: ['point', 'quantiles', 'samples'],
+        enum: ['point', 'quantiles'],
         default: 'point',
         description:
-          'Type of forecast output. "point" = single value per step (fastest). "quantiles" = confidence intervals (use for uncertainty). "samples" = distribution samples.',
+          'Type of forecast output. "point" = single value per step (fastest). "quantiles" = confidence intervals (use for uncertainty).',
       },
       quantiles: {
         type: 'array',
