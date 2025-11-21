@@ -122,23 +122,19 @@ server.tool(
   'Perform time series forecasting using FAIM models. Supports both point forecasting (single value) and probabilistic forecasting (confidence intervals). Can handle univariate and multivariate time series data.',
   {
     model: z.enum(['chronos2', 'tirex']).describe('The forecasting model to use. Chronos2 is the general-purpose model. TiRex is an alternative with different characteristics.'),
-    x: z.union([
-      z.array(z.number()),
-      z.array(z.array(z.number())),
-      z.array(z.array(z.array(z.number()))),
-    ]).describe('Time series data to forecast from. Can be a 1D array (single series), 2D array (multiple series or multivariate), or 3D array (batch, sequence, features).'),
+    x: z.any().describe('Time series data to forecast from. Can be a 1D array (single series), 2D array (multiple series or multivariate), or 3D array (batch, sequence, features).'),
     horizon: z.number().describe('Number of time steps to forecast into the future. Must be a positive integer. Example: 10 means predict the next 10 steps.'),
-    output_type: z.enum(['point', 'quantiles']).default('point').optional().describe('Type of forecast output. "point" = single value per step (fastest). "quantiles" = confidence intervals (use for uncertainty).'),
+    output_type: z.enum(['point', 'quantiles']).optional().describe('Type of forecast output. "point" = single value per step (fastest). "quantiles" = confidence intervals (use for uncertainty).'),
     quantiles: z.array(z.number()).optional().describe('Quantile levels to compute (only used with output_type="quantiles"). Values between 0 and 1. Example: [0.1, 0.5, 0.9] for 10th, 50th, 90th percentiles.'),
   },
-  async (args: {
-    model: 'chronos2' | 'tirex';
-    x: number[] | number[][] | number[][][];
-    horizon: number;
-    output_type?: 'point' | 'quantiles';
-    quantiles?: number[];
-  }, _extra: any) => {
-    const result = await forecast(args);
+  async ({ model, x, horizon, output_type, quantiles }: any) => {
+    const result = await forecast({
+      model,
+      x,
+      horizon,
+      output_type: output_type || 'point',
+      quantiles,
+    });
 
     if (!result.success) {
       throw new Error(result.error.message);
