@@ -87,8 +87,6 @@ export function initializeClient(): void {
       baseUrl: process.env.FAIM_API_BASE_URL,
     });
 
-    // Log successful initialization (without exposing the API key)
-    console.log('FAIM client initialized successfully');
   } catch (error) {
     // Store the error for later retrieval
     initializationError = error instanceof Error ? error : new Error(String(error));

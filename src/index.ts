@@ -58,6 +58,7 @@
  * and ensuring compatibility with the MCP specification.
  */
 
+import { z } from 'zod';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { initializeClient } from './utils/client.js';
@@ -90,7 +91,7 @@ server.registerTool(
   {
     description:
       'List all available forecasting models and their capabilities. Returns information about Chronos2, TiRex, and other available models, including supported output types and features.',
-    inputSchema: {},
+    inputSchema: z.object({}).strict() as any,
   },
   async () => {
     const result = await listModels();
@@ -122,72 +123,23 @@ server.registerTool(
   {
     description:
       'Perform time series forecasting using FAIM models. Supports both point forecasting (single value) and probabilistic forecasting (confidence intervals). Can handle univariate and multivariate time series data.',
-    inputSchema: {
-      type: 'object' as const,
-      properties: {
-        model: {
-          type: 'string' as const,
-          enum: ['chronos2', 'tirex'],
-          description:
-            'The forecasting model to use. Chronos2 is the general-purpose model. TiRex is an alternative with different characteristics.',
-        },
-        x: {
-          description:
-            'Time series data to forecast from. Can be a 1D array (single series), 2D array (multiple series or multivariate), or 3D array. 1D example: [1,2,3,4,5]. 2D example: [[1,2],[3,4],[5,6]].',
-          oneOf: [
-            {
-              type: 'array' as const,
-              items: { type: 'number' as const },
-              description: '1D array: single univariate time series',
-            },
-            {
-              type: 'array' as const,
-              items: {
-                type: 'array' as const,
-                items: { type: 'number' as const },
-              },
-              description: '2D array: multiple timesteps with features',
-            },
-            {
-              type: 'array' as const,
-              items: {
-                type: 'array' as const,
-                items: {
-                  type: 'array' as const,
-                  items: { type: 'number' as const },
-                },
-              },
-              description: '3D array: batch of time series',
-            },
-          ],
-        },
-        horizon: {
-          type: 'number' as const,
-          description:
-            'Number of time steps to forecast into the future. Must be a positive integer. Example: 10 means predict the next 10 steps.',
-        },
-        output_type: {
-          type: 'string' as const,
-          enum: ['point', 'quantiles'],
-          default: 'point',
-          description:
-            'Type of forecast output. "point" = single value per step (fastest). "quantiles" = confidence intervals (use for uncertainty).',
-        },
-        quantiles: {
-          type: 'array' as const,
-          items: { type: 'number' as const },
-          description:
-            'Quantile levels to compute (only used with output_type="quantiles"). Values between 0 and 1. Example: [0.1, 0.5, 0.9] for 10th, 50th, 90th percentiles.',
-        },
-      },
-      required: ['model', 'x', 'horizon'] as const,
-    } as any,
+    inputSchema: z.object({
+      model: z.enum(['chronos2', 'tirex']).describe('The forecasting model to use. Chronos2 is the general-purpose model. TiRex is an alternative with different characteristics.'),
+      x: z.union([
+        z.array(z.number()).describe('1D array: single univariate time series'),
+        z.array(z.array(z.number())).describe('2D array: multiple timesteps with features'),
+        z.array(z.array(z.array(z.number()))).describe('3D array: batch of time series'),
+      ]).describe('Time series data to forecast from. Can be a 1D array (single series), 2D array (multiple series or multivariate), or 3D array.'),
+      horizon: z.number().describe('Number of time steps to forecast into the future. Must be a positive integer. Example: 10 means predict the next 10 steps.'),
+      output_type: z.enum(['point', 'quantiles']).default('point').describe('Type of forecast output. "point" = single value per step (fastest). "quantiles" = confidence intervals (use for uncertainty).'),
+      quantiles: z.array(z.number()).optional().describe('Quantile levels to compute (only used with output_type="quantiles"). Values between 0 and 1. Example: [0.1, 0.5, 0.9] for 10th, 50th, 90th percentiles.'),
+    }).strict() as any,
   },
   async (args: unknown) => {
     const result = await forecast(args);
 
     if (!result.success) {
-      throw new Error(JSON.stringify(result.error));
+      throw new Error(result.error.message);
     }
 
     // Format response for MCP
@@ -217,7 +169,6 @@ async function main(): Promise<void> {
   try {
     // Initialize FAIM client before accepting requests
     initializeClient();
-    console.error('[MCP] FAIM client initialized successfully');
 
     // Create transport for stdio communication
     const transport = new StdioServerTransport();
@@ -226,8 +177,6 @@ async function main(): Promise<void> {
     // The transport handles all JSON-RPC protocol details
     await server.connect(transport);
 
-    console.error('[MCP] Server started with official @modelcontextprotocol/sdk');
-    console.error('[MCP] Waiting for requests from Claude...');
   } catch (error) {
     console.error('[MCP] Failed to start server:', error);
     process.exit(1);

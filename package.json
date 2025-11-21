@@ -1,6 +1,6 @@
 {
-  "name": "faim-mcp",
-  "version": "1.0.0",
+  "name": "@faim-group/mcp",
+  "version": "0.1.0",
   "description": "MCP server for FAIM forecasting SDK - Enables Claude to perform time series forecasting using Chronos2 and TiRex models",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

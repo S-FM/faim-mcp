@@ -45,8 +45,6 @@ export async function forecast(
     const normalizedX = normalizeInput(forecastRequest.x);
     const outputShape = getArrayShape(normalizedX);
 
-    // Log the operation for debugging
-    console.log(`Forecast request: model=${forecastRequest.model}, horizon=${forecastRequest.horizon}, output_type=${forecastRequest.output_type || 'point'}`);
 
     // Get the FAIM client (singleton initialized at server startup)
     const client = getClient();
@@ -122,8 +120,6 @@ export async function forecast(
       },
     };
 
-    // Log successful forecast
-    console.log(`Forecast completed successfully: ${duration}ms, tokens=${sdkResponse.metadata.token_count}`);
 
     return {
       success: true,
@@ -131,8 +127,6 @@ export async function forecast(
     };
   } catch (error) {
     // Catch all errors and transform to user-friendly format
-    console.error('Forecast tool error:', error);
-
     return {
       success: false,
       error: transformError(error, { operation: 'forecast' }),

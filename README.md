@@ -53,9 +53,56 @@ This server uses the **official `@modelcontextprotocol/sdk`** package from Anthr
 - npm 10+
 - FAIM API key (set as `FAIM_API_KEY` environment variable)
 
-### Setup
+### Option 1: Install from npm (Recommended)
 
 ```bash
+npm install @faim-group/mcp
+```
+
+Then configure Claude Desktop to use it:
+
+```json
+{
+  "mcpServers": {
+    "faim": {
+      "command": "node",
+      "args": ["-e", "require('@faim-group/mcp')"],
+      "env": {
+        "FAIM_API_KEY": "your-api-key-here"
+      }
+    }
+  }
+}
+```
+
+Or if installed globally:
+
+```bash
+npm install -g @faim-group/mcp
+```
+
+Then in Claude Desktop config:
+
+```json
+{
+  "mcpServers": {
+    "faim": {
+      "command": "faim-mcp",
+      "env": {
+        "FAIM_API_KEY": "your-api-key-here"
+      }
+    }
+  }
+}
+```
+
+### Option 2: Clone and Build Locally
+
+```bash
+# Clone the repository
+git clone <repository-url>
+cd faim-mcp
+
 # Install dependencies
 npm install
 
@@ -67,6 +114,22 @@ npm test
 
 # Run type checker
 npm run lint
+```
+
+Then in Claude Desktop config, use the local path:
+
+```json
+{
+  "mcpServers": {
+    "faim": {
+      "command": "node",
+      "args": ["/path/to/faim-mcp/dist/index.js"],
+      "env": {
+        "FAIM_API_KEY": "your-api-key-here"
+      }
+    }
+  }
+}
 ```
 
 ## Configuration
