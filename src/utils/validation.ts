@@ -353,6 +353,11 @@ function validateArrayInput(x: unknown): { error_code: string; message: string; 
  * ```
  */
 export function normalizeInput(input: number[] | number[][] | number[][][]): number[][][] {
+  // Handle empty array edge case
+  if (input.length === 0) {
+    throw new Error('Time series data cannot be empty. Provide at least one value.');
+  }
+
   // Already 3D? Return as-is (shape: [b, c, f])
   if (Array.isArray(input[0]) && Array.isArray(input[0][0])) {
     return input as number[][][];

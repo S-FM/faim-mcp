@@ -183,6 +183,17 @@ function transformJavaScriptError(
     };
   }
 
+  // Validation error from normalizeInput or other input validation
+  if (isValidationError(message)) {
+    logError('VALIDATION_ERROR', message, error);
+    return {
+      error_code: 'INVALID_PARAMETER',
+      message: message,  // Use the actual validation message
+      details: context?.operation ? `Operation: ${context.operation}` : undefined,
+      field: context?.field,
+    };
+  }
+
   // Programming error (shouldn't happen in production)
   if (error instanceof TypeError) {
     logError('TYPE_ERROR', message, error);
@@ -260,6 +271,27 @@ function isTimeoutError(message: string): boolean {
   ];
 
   return timeoutPatterns.some((pattern) =>
+    message.toLowerCase().includes(pattern.toLowerCase())
+  );
+}
+
+/**
+ * Checks if an error message indicates a validation problem
+ *
+ * These are errors from input validation (empty arrays, invalid values, etc.)
+ * that should be reported clearly to the user rather than as generic errors.
+ *
+ * @internal Helper for error classification
+ */
+function isValidationError(message: string): boolean {
+  const validationPatterns = [
+    'cannot be empty',
+    'must be',
+    'invalid',
+    'expected',
+  ];
+
+  return validationPatterns.some((pattern) =>
     message.toLowerCase().includes(pattern.toLowerCase())
   );
 }
