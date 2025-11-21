@@ -35,18 +35,14 @@ This MCP server currently exposes two foundation time-series models from the FAI
 
 ### Option 1: Install from npm (Recommended)
 
-```bash
-npm install @faim-group/mcp
-```
-
-Then configure your client to use it:
+Configure your client to use it directly with `npx`:
 
 ```json
 {
   "mcpServers": {
     "faim": {
-      "command": "node",
-      "args": ["-e", "require('@faim-group/mcp')"],
+      "command": "npx",
+      "args": ["-y", "@faim-group/mcp"],
       "env": {
         "FAIM_API_KEY": "your-api-key-here"
       }
@@ -55,7 +51,9 @@ Then configure your client to use it:
 }
 ```
 
-Or if installed globally:
+No installation required - `npx` will automatically download and run the latest version.
+
+Alternatively, if you prefer to install globally first:
 
 ```bash
 npm install -g @faim-group/mcp
