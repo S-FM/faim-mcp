@@ -4,6 +4,9 @@
   "description": "MCP server for FAIM forecasting SDK - Enables Claude to perform time series forecasting using Chronos2 and TiRex models",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "bin": {
+    "faim-mcp": "dist/index.js"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
