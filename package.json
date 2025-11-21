@@ -1,6 +1,6 @@
 {
   "name": "@faim-group/mcp",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "MCP server for FAIM forecasting SDK - Enables Claude to perform time series forecasting using Chronos2 and TiRex models",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -44,9 +44,9 @@
   "type": "module",
   "dependencies": {
     "@faim-group/sdk-forecasting": "^0.1.1",
-    "@modelcontextprotocol/sdk": "^1.21.0",
-    "zod": "^4.1.12",
-    "zod-to-json-schema": "^3.25.0"
+    "@modelcontextprotocol/sdk": "^1.22.0",
+    "zod": "^3.25.0",
+    "zod-to-json-schema": "^3.24.1"
   },
   "devDependencies": {
     "@types/node": "^20.10.0",
