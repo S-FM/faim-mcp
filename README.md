@@ -1,25 +1,13 @@
 # FAIM MCP Server
 
-A production-ready Model Context Protocol (MCP) server that integrates the FAIM time series forecasting SDK with any MCP-compatible AI assistant, enabling AI-powered forecasting capabilities.
+A Model Context Protocol (MCP) server that integrates the FAIM time series forecasting SDK with any MCP-compatible AI assistant, enabling AI-powered forecasting capabilities.
 
-**Now powered by the official `@modelcontextprotocol/sdk`** - No manual protocol implementation, full type safety, and complete MCP specification compliance.
 
 ## Overview
 
-This MCP server exposes two forecasting models from the FAIM API:
-- **Chronos2**: General-purpose time series forecasting model
-- **TiRex**: Alternative forecasting model with different characteristics
-
-### Official SDK Implementation
-
-This server uses the **official `@modelcontextprotocol/sdk`** package from Anthropic. Key benefits:
-
-- **Zero Manual Protocol Handling**: The SDK completely handles JSON-RPC 2.0 protocol, message formatting, and transport
-- **Production-Ready**: Maintained by Anthropic, used in production Claude integrations
-- **Type-Safe**: Full TypeScript support with complete type definitions
-- **Forward Compatible**: Automatic support for future MCP protocol updates
-- **Minimal Code**: ~250 lines of application code vs ~400 lines of custom protocol handling
-- **Built-in Validation**: Schema validation and error handling provided by SDK
+This MCP server currently exposes two foundation time-series models from the FAIM API for zero-shot forecasting:
+- **Chronos2**
+- **TiRex**
 
 ### Key Features
 
@@ -27,17 +15,9 @@ This server uses the **official `@modelcontextprotocol/sdk`** package from Anthr
 - `list_models`: Returns available forecasting models and capabilities
 - `forecast`: Performs point and probabilistic time series forecasting
 
-✅ **Production-Ready**:
-- Comprehensive error handling with helpful error messages
-- Input validation with detailed feedback
-- JSON-RPC stdio communication (MCP protocol)
-- Full TypeScript type safety
-- Extensive test coverage
-
 ✅ **Flexible Input Formats**:
 - 1D arrays: Single univariate time series
-- 2D arrays: Multivariate or batch time series
-- 3D arrays: Explicit batch/sequence/feature format
+- 3D arrays: batch/sequence/feature format
 
 ✅ **Probabilistic Forecasting**:
 - Point forecasts (single value predictions)
@@ -51,7 +31,7 @@ This server uses the **official `@modelcontextprotocol/sdk`** package from Anthr
 
 - Node.js 20+
 - npm 10+
-- FAIM API key (set as `FAIM_API_KEY` environment variable)
+- **FAIM API key**: Register at [https://faim.it.com/](https://faim.it.com/) to get your `FAIM_API_KEY`
 
 ### Option 1: Install from npm (Recommended)
 
@@ -59,7 +39,7 @@ This server uses the **official `@modelcontextprotocol/sdk`** package from Anthr
 npm install @faim-group/mcp
 ```
 
-Then configure Claude Desktop to use it:
+Then configure your client to use it:
 
 ```json
 {
@@ -81,7 +61,7 @@ Or if installed globally:
 npm install -g @faim-group/mcp
 ```
 
-Then in Claude Desktop config:
+Then in config:
 
 ```json
 {
@@ -116,7 +96,7 @@ npm test
 npm run lint
 ```
 
-Then in Claude Desktop config, use the local path:
+Then use the local path:
 
 ```json
 {
@@ -140,9 +120,6 @@ Then in Claude Desktop config, use the local path:
 # Required: Your FAIM API key
 export FAIM_API_KEY="your-api-key-here"
 
-# Optional: Custom API base URL (defaults to production)
-export FAIM_API_BASE_URL="https://api.faim.it.com"
-
 # Optional: Set to non-production for verbose logging
 export NODE_ENV=development
 ```
@@ -150,15 +127,6 @@ export NODE_ENV=development
 ## MCP Compatibility
 
 This server implements the **Model Context Protocol (MCP)**, an open protocol for connecting AI assistants to external tools and data sources. MCP is not limited to Claude - it works with any application that implements an MCP client.
-
-### Supported Clients & Platforms
-
-- **Claude Desktop** - Native MCP integration
-- **Claude.ai Web** - Via MCP support
-- **IDE Extensions** - VS Code (Cline), Zed, Continue.dev, and others
-- **AI Agent Frameworks** - LangChain, AutoGPT, CrewAI, etc.
-- **Custom MCP Clients** - JSON-RPC 2.0 over stdio
-- **Any LLM** - Via MCP client implementation
 
 ### Using with Any LLM or System
 
@@ -252,7 +220,7 @@ Performs time series forecasting using FAIM models.
     "name": "forecast",
     "arguments": {
       "model": "chronos2",
-      "x": [[1, 2], [3, 4], [5, 6]],
+      "x": [[[100, 50], [102, 51], [105, 52]]],
       "horizon": 5,
       "output_type": "quantiles",
       "quantiles": [0.1, 0.5, 0.9]
@@ -317,73 +285,6 @@ faim-mcp/
 └── package.json, tsconfig.json, tsup.config.ts, vitest.config.ts
 ```
 
-## Architecture
-
-### Client Management (`src/utils/client.ts`)
-
-- **Singleton Pattern**: Single FAIM client instance across all requests
-- **Lazy Initialization**: Client created when first needed
-- **Error Handling**: Fails fast if API key is missing at startup
-
-### Input Validation (`src/utils/validation.ts`)
-
-- **Format Normalization**: Converts 1D/2D arrays to required 3D format
-- **Comprehensive Checks**: Validates all parameters before API calls
-- **Helpful Errors**: Clear, actionable error messages
-- **Type Safety**: Full TypeScript support
-
-### Error Handling (`src/utils/errors.ts`)
-
-- **Error Classification**: Identifies error types (auth, validation, network, etc.)
-- **User-Friendly Messages**: Transforms technical errors to helpful guidance
-- **Retryable Detection**: Identifies transient vs permanent failures
-- **Structured Logging**: Production-ready error reporting
-
-### Tools Implementation
-
-#### `list_models` Tool
-- Stateless operation (no API calls)
-- Returns hardcoded model information
-- Used for discovery and capability checking
-- Fast and reliable
-
-#### `forecast` Tool
-- Validates input comprehensively
-- Normalizes arrays to SDK format
-- Routes to appropriate model (Chronos2 or TiRex)
-- Transforms SDK responses
-- Comprehensive error handling
-
-## Error Handling
-
-The server uses a `ToolResult<T>` pattern where all tools return either success or failure:
-
-```typescript
-// Success response
-{
-  success: true,
-  data: { /* tool-specific response */ }
-}
-
-// Error response
-{
-  success: false,
-  error: {
-    error_code: "VALIDATION_ERROR",
-    message: "Human-readable error message",
-    details: "Additional context",
-    field: "x"  // If field-specific
-  }
-}
-```
-
-### Error Codes
-
-- **Validation**: `INVALID_PARAMETER`, `MISSING_REQUIRED_FIELD`, `INVALID_VALUE_RANGE`
-- **Authentication**: `INVALID_API_KEY`, `AUTHENTICATION_FAILED`
-- **Network**: `NETWORK_ERROR`, `TIMEOUT_ERROR`
-- **Server**: `INTERNAL_SERVER_ERROR`, `RESOURCE_EXHAUSTED`
-
 ## Testing
 
 The project includes comprehensive tests for:
@@ -400,23 +301,6 @@ npm run test:coverage   # Run with coverage report
 npm run test:ui         # Run with UI dashboard
 ```
 
-## Development
-
-### Adding New Tools
-
-1. Create a new file in `src/tools/`
-2. Implement the tool handler function
-3. Export `TOOL_DEFINITION` constant
-4. Add to server's tool handlers
-5. Add tests in `tests/tools/`
-
-### Adding New Utilities
-
-1. Create in `src/utils/`
-2. Keep single responsibility
-3. Add comprehensive comments
-4. Export for use by tools
-5. Add unit tests
 
 ### Debugging
 
@@ -449,31 +333,6 @@ Outputs:
 - [ ] Deploy `dist/` directory
 - [ ] Run `node dist/index.js` as the server process
 
-## Performance Considerations
-
-- **Client Initialization**: Done once at startup, not per-request
-- **Array Normalization**: Minimal overhead, done in-memory
-- **Error Messages**: Only detailed on actual errors, no overhead on success
-- **Logging**: Disabled in production mode
-- **Type Safety**: Zero runtime cost, compile-time only
-
-## Security
-
-- **API Key Management**: Environment variable, never logged
-- **Input Validation**: All inputs validated before API calls
-- **Error Messages**: Don't expose internal system details
-- **Timeout Handling**: Configurable per-request timeouts
-- **Type Safety**: Full TypeScript ensures type safety
-
-## Documentation Comments
-
-All source files include comprehensive LLM-friendly comments explaining:
-- **What** each component does
-- **Why** it's designed that way
-- **How** it integrates with other parts
-- **Edge cases** and important considerations
-
-This helps both humans and LLMs understand the codebase.
 
 ## Troubleshooting
 
@@ -489,11 +348,6 @@ npm install
 npm run build
 ```
 
-### Tests failing
-```bash
-npm run lint     # Check TypeScript errors
-npm test         # Run tests with detailed output
-```
 
 ### Server not responding
 - Check that stdout/stderr are properly connected
@@ -504,11 +358,3 @@ npm test         # Run tests with detailed output
 ## License
 
 MIT
-
-## Support
-
-For issues or questions:
-1. Check the comprehensive code comments
-2. Review test files for usage examples
-3. Check error messages for helpful suggestions
-4. Review architecture documentation above

@@ -1,6 +1,6 @@
 {
   "name": "@faim-group/mcp",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "description": "MCP server for FAIM forecasting SDK - Enables Claude to perform time series forecasting using Chronos2 and TiRex models",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -33,6 +33,14 @@
   ],
   "author": "",
   "license": "MIT",
+  "homepage": "https://faim.it.com/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/S-FM/faim-mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/S-FM/faim-mcp/issues"
+  },
   "type": "module",
   "dependencies": {
     "@faim-group/sdk-forecasting": "^0.1.1",

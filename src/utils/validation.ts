@@ -313,38 +313,63 @@ function validateArrayInput(x: unknown): { error_code: string; message: string; 
 /**
  * Normalizes user input arrays to 3D format required by SDK
  *
- * The FAIM SDK expects data in shape [batch, sequence_length, num_features]:
- * - batch: Multiple independent time series (typically 1 for single forecast)
- * - sequence_length: Number of historical steps
- * - num_features: Number of variables (1 for univariate, >1 for multivariate)
+ * The FAIM SDK expects data in shape [batch, sequence_length, num_features] where:
+ * - b (batch): Multiple independent time series (typically 1 for single forecast)
+ * - c (sequence_length): Number of historical timesteps
+ * - f (num_features): Number of variables (1 for univariate, >1 for multivariate)
  *
- * This function accepts user-friendly formats:
- * - 1D [1, 2, 3] → [[[1], [2], [3]]]
- * - 2D [[1, 2], [3, 4]] → [[[1, 2], [3, 4]]] (multivariate)
- * - 3D (already correct) → unchanged
+ * INPUT FORMATS ACCEPTED (all automatically converted to 3D):
+ *
+ * 1. 1D ARRAY - Univariate time series with shape (c,):
+ *    Input:  [1, 2, 3, 4, 5]
+ *    Meaning: 5 univariate timesteps
+ *    Output: [[[1], [2], [3], [4], [5]]]  (shape: [1, 5, 1] = [b=1, c=5, f=1])
+ *
+ * 2. 3D ARRAY - Already in correct format with shape (b, c, f):
+ *    Input:  [[[1], [2], [3]]]
+ *    Meaning: 1 batch, 3 timesteps, 1 feature (univariate)
+ *    Output: [[[1], [2], [3]]]  (unchanged, shape: [1, 3, 1])
+ *
+ *    Input:  [[[100, 50, 200], [102, 51, 205]]]
+ *    Meaning: 1 batch, 2 timesteps, 3 features (multivariate)
+ *    Output: [[[100, 50, 200], [102, 51, 205]]]  (unchanged, shape: [1, 2, 3])
+ *
+ * Note: 2D arrays [[1, 2], [3, 4]] are also accepted (treated as multivariate single batch)
  *
  * @param input - Raw input from user (1D, 2D, or 3D array)
- * @returns {number[][][]} Normalized 3D array
+ * @returns {number[][][]} Normalized 3D array with shape [b, c, f]
  *
- * Example:
+ * Example (for LLMs):
  * ```typescript
- * normalizeInput([1, 2, 3, 4, 5]) // → [[[1], [2], [3], [4], [5]]]
+ * // 1D input: Single univariate time series
+ * normalizeInput([1, 2, 3, 4, 5])
+ * // Returns: [[[1], [2], [3], [4], [5]]]
+ * // Shape: [b=1, c=5, f=1]
+ *
+ * // 3D input: Already correct format (multivariate, single batch)
+ * normalizeInput([[[100, 50], [102, 51], [105, 52]]])
+ * // Returns: [[[100, 50], [102, 51], [105, 52]]]  (unchanged)
+ * // Shape: [b=1, c=3, f=2]
  * ```
  */
 export function normalizeInput(input: number[] | number[][] | number[][][]): number[][][] {
-  // Already 3D? Return as-is
+  // Already 3D? Return as-is (shape: [b, c, f])
   if (Array.isArray(input[0]) && Array.isArray(input[0][0])) {
     return input as number[][][];
   }
 
-  // 1D array [1, 2, 3]
+  // 1D array (shape: c,) - Univariate time series
+  // Example: [1, 2, 3, 4, 5]
+  // Transform to 3D: [[[1], [2], [3], [4], [5]]] (shape: [b=1, c=5, f=1])
   if (typeof input[0] === 'number') {
     // Convert each scalar to a 1-element array [n] → [[n]]
     // Then wrap in batch dimension [[[1], [2], [3]]]
     return [(input as number[]).map((val) => [val])];
   }
 
-  // 2D array [[1, 2], [3, 4]] - each row is a timestep with features
+  // 2D array (shape: c, f) - Multivariate single batch
+  // Example: [[1, 2], [3, 4]] represents 2 timesteps with 2 features each
+  // Transform to 3D: [[[1, 2], [3, 4]]] (shape: [b=1, c=2, f=2])
   // Wrap in batch dimension: [[[1, 2], [3, 4]]]
   return [input as number[][]];
 }
