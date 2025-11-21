@@ -7,16 +7,11 @@
  * It provides Claude with information about what models are available
  * and what they can do, helping Claude choose the right model for the task.
  *
- * Tool Definition for MCP:
- * - Name: list_models
- * - Input: None
- * - Output: Array of available models with their capabilities
- *
- * LLM Context: This tool is useful for Claude to:
- * 1. Understand what models are available
- * 2. Choose between Chronos2 and TiRex for different tasks
- * 3. Understand supported output types (point, quantiles, samples)
- * 4. Learn about model limitations and best practices
+ * Implementation Notes:
+ * - No external API calls required
+ * - No authentication needed
+ * - Always returns the same data (could be cached)
+ * - Can be called anytime for introspection
  */
 
 import { ListModelsResponse, ModelInfo, ToolResult } from '../types.js';
@@ -33,12 +28,6 @@ import { ListModelsResponse, ModelInfo, ToolResult } from '../types.js';
  * making it very fast and reliable.
  *
  * @returns {ToolResult<ListModelsResponse>} A successful result containing model list
- *
- * Implementation Notes:
- * - No external API calls required
- * - No authentication needed
- * - Always returns the same data (could be cached)
- * - Can be called anytime for introspection
  */
 export async function listModels(): Promise<ToolResult<ListModelsResponse>> {
   try {
@@ -120,22 +109,3 @@ export async function listModels(): Promise<ToolResult<ListModelsResponse>> {
     };
   }
 }
-
-/**
- * MCP Tool Schema for list_models
- *
- * This describes the tool for the MCP server.
- * MCP uses this to validate inputs and display tool info to Claude.
- *
- * Exported as a constant so the server can register it.
- */
-export const LIST_MODELS_TOOL = {
-  name: 'list_models',
-  description:
-    'List all available forecasting models and their capabilities. Returns information about Chronos2, TiRex, and other available models, including supported output types and features.',
-  inputSchema: {
-    type: 'object' as const,
-    properties: {},
-    required: [],
-  },
-};

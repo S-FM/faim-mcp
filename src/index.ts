@@ -4,21 +4,26 @@
  * Main entry point for the Model Context Protocol server that provides
  * Claude with access to FAIM's time series forecasting capabilities.
  *
+ * This implementation uses the official @modelcontextprotocol/sdk package,
+ * which provides production-ready abstractions for MCP protocol handling.
+ *
  * Architecture Overview:
  * ┌─────────────────────────────────────────┐
  * │          Claude (via MCP Client)        │
  * └──────────────────┬──────────────────────┘
  *                    │
- *                    │ MCP Protocol
+ *                    │ MCP Protocol (JSON-RPC 2.0)
  *                    ▼
- * ┌─────────────────────────────────────────┐
- * │     FAIM MCP Server (this file)         │
- * │  ┌─────────────────────────────────┐   │
- * │  │  Tool Handlers                  │   │
- * │  │  - list_models()                │   │
- * │  │  - forecast()                   │   │
- * │  └─────────────────────────────────┘   │
- * └──────────────┬──────────────────────────┘
+ * ┌─────────────────────────────────────────────────────┐
+ * │     FAIM MCP Server (@modelcontextprotocol/sdk)    │
+ * │  ┌──────────────────────────────────────────────┐  │
+ * │  │  McpServer Instance                          │  │
+ * │  │  ├─ Registered Tools:                        │  │
+ * │  │  │  ├─ list_models                          │  │
+ * │  │  │  └─ forecast                             │  │
+ * │  │  └─ StdioServerTransport (stdin/stdout)     │  │
+ * │  └──────────────────────────────────────────────┘  │
+ * └──────────────┬──────────────────────────────────────┘
  *                │
  *                │ SDK Calls
  *                ▼
@@ -38,225 +43,195 @@
  * 1. Server starts
  * 2. initializeClient() reads FAIM_API_KEY from env
  * 3. Creates FaimClient singleton
- * 4. Registers MCP tools
- * 5. Waits for Claude to call tools
+ * 4. Creates McpServer instance with capabilities
+ * 5. Registers tools with their handlers
+ * 6. Connects to StdioServerTransport
+ * 7. Waits for Claude to call tools
  *
  * Error Handling:
  * - Startup errors: Fail fast if API key is missing
- * - Tool errors: Always return ToolResult, never throw
- * - SDK errors: Transform to user-friendly format
+ * - Tool errors: SDK handles error response formatting
+ * - Validation errors: Zod schemas validate inputs automatically
  *
- * LLM Context: This module orchestrates the MCP server.
- * When Claude makes a request, it comes through here, gets routed
- * to the appropriate tool handler, and returns a response.
+ * LLM Context: This module sets up the official MCP server.
+ * All protocol handling is delegated to the SDK, reducing complexity
+ * and ensuring compatibility with the MCP specification.
  */
 
-// MCP Server implementation using Node.js stdio
-// This provides a JSON-RPC interface compatible with MCP protocol
-// Documentation: https://github.com/anthropics/mcp-sdk-python
-
-import * as readline from 'readline';
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { initializeClient } from './utils/client.js';
-import { listModels, LIST_MODELS_TOOL } from './tools/list-models.js';
-import { forecast, FORECAST_TOOL } from './tools/forecast.js';
-import { transformError } from './utils/errors.js';
+import { listModels } from './tools/list-models.js';
+import { forecast } from './tools/forecast.js';
 
 /**
- * MCP Server Implementation using stdio JSON-RPC
+ * Create and configure the MCP server
  *
- * This is a minimal MCP server implementation that communicates via stdin/stdout.
- * It follows the Model Context Protocol specification:
- * - Receives JSON-RPC requests from Claude on stdin
- * - Sends JSON-RPC responses on stdout
- * - Each message ends with a newline
- *
- * The MCP protocol defines the following request types:
- * - "tools/list": Get available tools
- * - "tools/call": Execute a tool with arguments
+ * The McpServer handles:
+ * - Protocol initialization handshake
+ * - Tool registration and listing
+ * - Request routing to tool handlers
+ * - Error response formatting
+ * - All JSON-RPC protocol details
  */
-class FaimMCPServer {
-  private requestId = 0;
+const server = new McpServer({
+  name: 'faim-mcp',
+  version: '1.0.0',
+});
 
-  /**
-   * Send a response back to Claude
-   * Uses JSON-RPC format with newline delimiter
-   */
-  private sendResponse(response: unknown): void {
-    process.stdout.write(JSON.stringify(response) + '\n');
-  }
-
-  /**
-   * Handle a list_models request
-   * Returns available forecasting models and their capabilities
-   */
-  private async handleListModels(): Promise<unknown> {
+/**
+ * Register the list_models tool
+ *
+ * This tool returns available forecasting models and their capabilities.
+ * No input required - stateless operation.
+ */
+server.registerTool(
+  'list_models',
+  {
+    description:
+      'List all available forecasting models and their capabilities. Returns information about Chronos2, TiRex, and other available models, including supported output types and features.',
+    inputSchema: {},
+  },
+  async () => {
     const result = await listModels();
+
+    if (!result.success) {
+      throw new Error(result.error.message);
+    }
+
+    // Format response for MCP
     return {
-      tools: [
-        LIST_MODELS_TOOL,
-        FORECAST_TOOL,
+      content: [
+        {
+          type: 'text' as const,
+          text: JSON.stringify(result.data),
+        },
       ],
     };
   }
-
-  /**
-   * Handle a forecast request
-   * Performs time series forecasting using FAIM models
-   */
-  private async handleForecast(args: unknown): Promise<unknown> {
-    return forecast(args);
-  }
-
-  /**
-   * Route and handle incoming JSON-RPC requests
-   * Dispatches to appropriate tool handler
-   */
-  private async handleRequest(request: unknown): Promise<unknown> {
-    const req = request as Record<string, unknown>;
-    const method = req.method as string;
-    const params = req.params as Record<string, unknown>;
-
-    console.error(`[MCP] Received request: ${method}`);
-
-    try {
-      // Route based on method
-      if (method === 'tools/list') {
-        // Client asking what tools are available
-        return {
-          result: await this.handleListModels(),
-        };
-      } else if (method === 'tools/call') {
-        // Client calling a specific tool
-        const toolName = params.name as string;
-        const toolArgs = params.arguments;
-
-        console.error(`[MCP] Calling tool: ${toolName}`);
-
-        if (toolName === 'list_models') {
-          return {
-            result: await this.listModels(),
-          };
-        } else if (toolName === 'forecast') {
-          return {
-            result: await this.handleForecast(toolArgs),
-          };
-        } else {
-          return {
-            error: {
-              code: -32601,
-              message: `Tool not found: ${toolName}`,
-            },
-          };
-        }
-      } else {
-        return {
-          error: {
-            code: -32601,
-            message: `Unknown method: ${method}`,
-          },
-        };
-      }
-    } catch (error) {
-      console.error(`[MCP] Error handling request:`, error);
-      return {
-        error: {
-          code: -32603,
-          message: 'Internal server error',
-          data: {
-            error: transformError(error, { operation: method }),
-          },
-        },
-      };
-    }
-  }
-
-  /**
-   * Wrapper for listModels tool - returns just the models array
-   */
-  private async listModels(): Promise<unknown> {
-    const result = await listModels();
-    if (result.success) {
-      return result.data.models;
-    } else {
-      throw new Error(result.error.message);
-    }
-  }
-
-  /**
-   * Start the MCP server
-   * Reads from stdin, processes requests, writes to stdout
-   */
-  async start(): Promise<void> {
-    try {
-      // Initialize the FAIM client before accepting requests
-      initializeClient();
-      console.error('[MCP] FAIM client initialized successfully');
-
-      // Create readline interface for stdin
-      const rl = readline.createInterface({
-        input: process.stdin,
-        output: process.stdout,
-        terminal: false,
-      });
-
-      // Process each line as a JSON-RPC request
-      rl.on('line', async (line: string) => {
-        try {
-          const request = JSON.parse(line);
-          const id = request.id;
-
-          // Handle the request and send response
-          const result = await this.handleRequest(request);
-          const response = {
-            jsonrpc: '2.0',
-            id,
-            ...(result as Record<string, unknown>),
-          };
-          this.sendResponse(response);
-        } catch (error) {
-          console.error('[MCP] Failed to process line:', error);
-          // Send error response if we have an id
-          try {
-            const request = JSON.parse(line);
-            this.sendResponse({
-              jsonrpc: '2.0',
-              id: request.id,
-              error: {
-                code: -32700,
-                message: 'Parse error',
-              },
-            });
-          } catch {
-            // Can't parse request, just continue
-          }
-        }
-      });
-
-      rl.on('close', () => {
-        console.error('[MCP] Connection closed');
-        process.exit(0);
-      });
-
-      rl.on('error', (error: Error) => {
-        console.error('[MCP] Readline error:', error);
-        process.exit(1);
-      });
-
-      console.error('[MCP] Server started, waiting for requests...');
-    } catch (error) {
-      console.error('[MCP] Failed to start server:', error);
-      process.exit(1);
-    }
-  }
-}
+);
 
 /**
- * Entry point
- * Create and start the server
+ * Register the forecast tool
+ *
+ * This is the main tool for time series forecasting.
+ * Validates inputs and handles forecasting operations.
+ */
+server.registerTool(
+  'forecast',
+  {
+    description:
+      'Perform time series forecasting using FAIM models. Supports both point forecasting (single value) and probabilistic forecasting (confidence intervals). Can handle univariate and multivariate time series data.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        model: {
+          type: 'string' as const,
+          enum: ['chronos2', 'tirex'],
+          description:
+            'The forecasting model to use. Chronos2 is the general-purpose model. TiRex is an alternative with different characteristics.',
+        },
+        x: {
+          description:
+            'Time series data to forecast from. Can be a 1D array (single series), 2D array (multiple series or multivariate), or 3D array. 1D example: [1,2,3,4,5]. 2D example: [[1,2],[3,4],[5,6]].',
+          oneOf: [
+            {
+              type: 'array' as const,
+              items: { type: 'number' as const },
+              description: '1D array: single univariate time series',
+            },
+            {
+              type: 'array' as const,
+              items: {
+                type: 'array' as const,
+                items: { type: 'number' as const },
+              },
+              description: '2D array: multiple timesteps with features',
+            },
+            {
+              type: 'array' as const,
+              items: {
+                type: 'array' as const,
+                items: {
+                  type: 'array' as const,
+                  items: { type: 'number' as const },
+                },
+              },
+              description: '3D array: batch of time series',
+            },
+          ],
+        },
+        horizon: {
+          type: 'number' as const,
+          description:
+            'Number of time steps to forecast into the future. Must be a positive integer. Example: 10 means predict the next 10 steps.',
+        },
+        output_type: {
+          type: 'string' as const,
+          enum: ['point', 'quantiles'],
+          default: 'point',
+          description:
+            'Type of forecast output. "point" = single value per step (fastest). "quantiles" = confidence intervals (use for uncertainty).',
+        },
+        quantiles: {
+          type: 'array' as const,
+          items: { type: 'number' as const },
+          description:
+            'Quantile levels to compute (only used with output_type="quantiles"). Values between 0 and 1. Example: [0.1, 0.5, 0.9] for 10th, 50th, 90th percentiles.',
+        },
+      },
+      required: ['model', 'x', 'horizon'] as const,
+    } as any,
+  },
+  async (args: unknown) => {
+    const result = await forecast(args);
+
+    if (!result.success) {
+      throw new Error(JSON.stringify(result.error));
+    }
+
+    // Format response for MCP
+    return {
+      content: [
+        {
+          type: 'text' as const,
+          text: JSON.stringify(result.data),
+        },
+      ],
+    };
+  }
+);
+
+/**
+ * Start the MCP server
+ *
+ * This function:
+ * 1. Initializes the FAIM client (ensures API key is available)
+ * 2. Creates a StdioServerTransport for stdin/stdout communication
+ * 3. Connects the server to the transport
+ * 4. Waits for incoming requests from Claude
+ *
+ * The server will run until the process is terminated.
  */
 async function main(): Promise<void> {
-  const server = new FaimMCPServer();
-  await server.start();
+  try {
+    // Initialize FAIM client before accepting requests
+    initializeClient();
+    console.error('[MCP] FAIM client initialized successfully');
+
+    // Create transport for stdio communication
+    const transport = new StdioServerTransport();
+
+    // Connect server to transport
+    // The transport handles all JSON-RPC protocol details
+    await server.connect(transport);
+
+    console.error('[MCP] Server started with official @modelcontextprotocol/sdk');
+    console.error('[MCP] Waiting for requests from Claude...');
+  } catch (error) {
+    console.error('[MCP] Failed to start server:', error);
+    process.exit(1);
+  }
 }
 
 // Start the server
@@ -275,5 +250,3 @@ process.on('SIGTERM', () => {
   console.error('[MCP] Terminated');
   process.exit(0);
 });
-
-export { FaimMCPServer };

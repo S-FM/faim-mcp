@@ -18,7 +18,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { listModels, LIST_MODELS_TOOL } from '../../src/tools/list-models.js';
+import { listModels } from '../../src/tools/list-models.js';
 
 describe('listModels tool', () => {
   /**
@@ -139,25 +139,10 @@ describe('listModels tool', () => {
   /**
    * Tool Schema Tests
    *
-   * Verify the tool definition is correct for MCP.
+   * Tool schemas are now defined in index.ts with the official SDK.
+   * These tests have been removed since schema definitions are handled by
+   * the McpServer.registerTool() API which manages validation.
    */
-
-  it('should have correct tool name', () => {
-    expect(LIST_MODELS_TOOL.name).toBe('list_models');
-  });
-
-  it('should have a description', () => {
-    expect(LIST_MODELS_TOOL.description).toBeDefined();
-    expect(LIST_MODELS_TOOL.description.length).toBeGreaterThan(0);
-  });
-
-  it('should have input schema with no required parameters', () => {
-    expect(LIST_MODELS_TOOL.inputSchema.required).toEqual([]);
-  });
-
-  it('should have object type input schema', () => {
-    expect(LIST_MODELS_TOOL.inputSchema.type).toBe('object');
-  });
 
   /**
    * Error Resilience Tests

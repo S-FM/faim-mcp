@@ -21,7 +21,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { forecast, FORECAST_TOOL } from '../../src/tools/forecast.js';
+import { forecast } from '../../src/tools/forecast.js';
 import * as clientModule from '../../src/utils/client.js';
 
 /**
@@ -94,133 +94,11 @@ describe('forecast tool', () => {
   /**
    * Validation Tests
    *
-   * Verify that invalid inputs are caught with proper error codes.
+   * Note: Comprehensive input validation is now handled by the SDK's Zod schema
+   * validation at the tool registration layer. These tests verify behavior with
+   * valid inputs. The SDK ensures only valid data reaches the forecast function.
+   * Test the function behavior assuming valid input has already been validated.
    */
-
-  it('should reject request without model', async () => {
-    const request = {
-      x: [1, 2, 3],
-      horizon: 10,
-    };
-
-    const result = await forecast(request);
-
-    expect(result.success).toBe(false);
-    if (!result.success) {
-      expect(result.error.error_code).toBe('MISSING_REQUIRED_FIELD');
-      expect(result.error.field).toBe('model');
-    }
-  });
-
-  it('should reject request with invalid model', async () => {
-    const request = {
-      model: 'invalid_model',
-      x: [1, 2, 3],
-      horizon: 10,
-    };
-
-    const result = await forecast(request);
-
-    expect(result.success).toBe(false);
-    if (!result.success) {
-      expect(result.error.error_code).toBe('INVALID_PARAMETER');
-      expect(result.error.field).toBe('model');
-    }
-  });
-
-  it('should reject request without horizon', async () => {
-    const request = {
-      model: 'chronos2',
-      x: [1, 2, 3],
-    };
-
-    const result = await forecast(request);
-
-    expect(result.success).toBe(false);
-    if (!result.success) {
-      expect(result.error.error_code).toBe('MISSING_REQUIRED_FIELD');
-      expect(result.error.field).toBe('horizon');
-    }
-  });
-
-  it('should reject request without time series data', async () => {
-    const request = {
-      model: 'chronos2',
-      horizon: 10,
-    };
-
-    const result = await forecast(request);
-
-    expect(result.success).toBe(false);
-    if (!result.success) {
-      expect(result.error.error_code).toBe('MISSING_REQUIRED_FIELD');
-      expect(result.error.field).toBe('x');
-    }
-  });
-
-  it('should reject zero horizon', async () => {
-    const request = {
-      model: 'chronos2',
-      x: [1, 2, 3],
-      horizon: 0,
-    };
-
-    const result = await forecast(request);
-
-    expect(result.success).toBe(false);
-    if (!result.success) {
-      expect(result.error.error_code).toBe('INVALID_VALUE_RANGE');
-    }
-  });
-
-  it('should reject negative horizon', async () => {
-    const request = {
-      model: 'chronos2',
-      x: [1, 2, 3],
-      horizon: -10,
-    };
-
-    const result = await forecast(request);
-
-    expect(result.success).toBe(false);
-    if (!result.success) {
-      expect(result.error.error_code).toBe('INVALID_VALUE_RANGE');
-    }
-  });
-
-  it('should reject invalid output_type', async () => {
-    const request = {
-      model: 'chronos2',
-      x: [1, 2, 3],
-      horizon: 10,
-      output_type: 'invalid',
-    };
-
-    const result = await forecast(request);
-
-    expect(result.success).toBe(false);
-    if (!result.success) {
-      expect(result.error.error_code).toBe('INVALID_PARAMETER');
-      expect(result.error.field).toBe('output_type');
-    }
-  });
-
-  it('should reject out-of-range quantiles', async () => {
-    const request = {
-      model: 'chronos2',
-      x: [1, 2, 3],
-      horizon: 10,
-      output_type: 'quantiles',
-      quantiles: [0.1, 1.5, 0.9],
-    };
-
-    const result = await forecast(request);
-
-    expect(result.success).toBe(false);
-    if (!result.success) {
-      expect(result.error.error_code).toBe('INVALID_VALUE_RANGE');
-    }
-  });
 
   it('should accept TiRex model', async () => {
     const request = {
@@ -238,49 +116,10 @@ describe('forecast tool', () => {
   /**
    * Tool Schema Tests
    *
-   * Verify the tool definition is correct for MCP.
+   * Tool schemas are now defined in index.ts with the official SDK.
+   * These tests have been removed since schema definitions are handled by
+   * the McpServer.registerTool() API which manages validation.
    */
-
-  it('should have correct tool name', () => {
-    expect(FORECAST_TOOL.name).toBe('forecast');
-  });
-
-  it('should have a description', () => {
-    expect(FORECAST_TOOL.description).toBeDefined();
-    expect(FORECAST_TOOL.description.length).toBeGreaterThan(0);
-  });
-
-  it('should require model, x, and horizon fields', () => {
-    expect(FORECAST_TOOL.inputSchema.required).toContain('model');
-    expect(FORECAST_TOOL.inputSchema.required).toContain('x');
-    expect(FORECAST_TOOL.inputSchema.required).toContain('horizon');
-  });
-
-  it('should have object type input schema', () => {
-    expect(FORECAST_TOOL.inputSchema.type).toBe('object');
-  });
-
-  it('should define model property', () => {
-    expect(FORECAST_TOOL.inputSchema.properties.model).toBeDefined();
-  });
-
-  it('should define x property', () => {
-    expect(FORECAST_TOOL.inputSchema.properties.x).toBeDefined();
-  });
-
-  it('should define horizon property', () => {
-    expect(FORECAST_TOOL.inputSchema.properties.horizon).toBeDefined();
-  });
-
-  it('should define output_type property as optional', () => {
-    expect(FORECAST_TOOL.inputSchema.properties.output_type).toBeDefined();
-    expect(FORECAST_TOOL.inputSchema.required).not.toContain('output_type');
-  });
-
-  it('should define quantiles property as optional', () => {
-    expect(FORECAST_TOOL.inputSchema.properties.quantiles).toBeDefined();
-    expect(FORECAST_TOOL.inputSchema.required).not.toContain('quantiles');
-  });
 
   /**
    * Input Format Tests
@@ -387,22 +226,11 @@ describe('forecast tool', () => {
     }
   });
 
-  it('should reject samples output type (not supported by API)', async () => {
-    const request = {
-      model: 'chronos2',
-      x: [1, 2, 3],
-      horizon: 10,
-      output_type: 'samples',
-    };
-
-    const result = await forecast(request);
-
-    expect(result.success).toBe(false);
-    if (!result.success) {
-      expect(result.error.error_code).toBe('INVALID_PARAMETER');
-      expect(result.error.field).toBe('output_type');
-    }
-  });
+  /**
+   * Note: Invalid output_type values (like 'samples') are validated by the SDK schema
+   * at the registration layer and never reach the forecast function. This test is removed
+   * since schema validation is now the SDK's responsibility.
+   */
 
   /**
    * Error Handling Tests

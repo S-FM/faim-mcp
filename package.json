@@ -21,12 +21,20 @@
     "test:coverage": "vitest --coverage",
     "lint": "tsc --noEmit"
   },
-  "keywords": ["mcp", "forecasting", "chronos2", "tirex", "time-series"],
+  "keywords": [
+    "mcp",
+    "forecasting",
+    "chronos2",
+    "tirex",
+    "time-series"
+  ],
   "author": "",
   "license": "MIT",
   "type": "module",
   "dependencies": {
-    "@faim-group/sdk-forecasting": "^0.1.1"
+    "@faim-group/sdk-forecasting": "^0.1.1",
+    "@modelcontextprotocol/sdk": "^1.22.0",
+    "zod": "^4.1.12"
   },
   "devDependencies": {
     "@types/node": "^20.10.0",

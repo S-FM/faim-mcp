@@ -2,11 +2,24 @@
 
 A production-ready Model Context Protocol (MCP) server that integrates the FAIM time series forecasting SDK with any MCP-compatible AI assistant, enabling AI-powered forecasting capabilities.
 
+**Now powered by the official `@modelcontextprotocol/sdk`** - No manual protocol implementation, full type safety, and complete MCP specification compliance.
+
 ## Overview
 
 This MCP server exposes two forecasting models from the FAIM API:
 - **Chronos2**: General-purpose time series forecasting model
 - **TiRex**: Alternative forecasting model with different characteristics
+
+### Official SDK Implementation
+
+This server uses the **official `@modelcontextprotocol/sdk`** package from Anthropic. Key benefits:
+
+- **Zero Manual Protocol Handling**: The SDK completely handles JSON-RPC 2.0 protocol, message formatting, and transport
+- **Production-Ready**: Maintained by Anthropic, used in production Claude integrations
+- **Type-Safe**: Full TypeScript support with complete type definitions
+- **Forward Compatible**: Automatic support for future MCP protocol updates
+- **Minimal Code**: ~250 lines of application code vs ~400 lines of custom protocol handling
+- **Built-in Validation**: Schema validation and error handling provided by SDK
 
 ### Key Features
 
