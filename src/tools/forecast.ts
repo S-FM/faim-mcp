@@ -40,9 +40,19 @@ export async function forecast(
     // Cast to typed request (already validated by Zod at SDK layer)
     const forecastRequest = request as ForecastRequest;
 
+    // Handle case where x might be passed as a JSON string (e.g., from Claude XML)
+    let xData = forecastRequest.x;
+    if (typeof xData === 'string') {
+      try {
+        xData = JSON.parse(xData);
+      } catch (e) {
+        throw new Error(`Failed to parse x parameter as JSON: ${(e as Error).message}`);
+      }
+    }
+
     // Normalize input array to 3D format
     // Users can pass 1D or 2D arrays; we convert to SDK's required 3D format
-    const normalizedX = normalizeInput(forecastRequest.x);
+    const normalizedX = normalizeInput(xData as number[] | number[][] | number[][][]);
     const outputShape = getArrayShape(normalizedX);
 
 
