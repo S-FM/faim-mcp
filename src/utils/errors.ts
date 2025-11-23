@@ -188,7 +188,7 @@ function transformJavaScriptError(
     logError('VALIDATION_ERROR', message, error);
     return {
       error_code: 'INVALID_PARAMETER',
-      message: message,  // Use the actual validation message
+      message: message, // Use the actual validation message
       details: context?.operation ? `Operation: ${context.operation}` : undefined,
       field: context?.field,
     };
@@ -253,9 +253,7 @@ function isNetworkError(message: string): boolean {
     'connect',
   ];
 
-  return networkPatterns.some((pattern) =>
-    message.toLowerCase().includes(pattern.toLowerCase())
-  );
+  return networkPatterns.some((pattern) => message.toLowerCase().includes(pattern.toLowerCase()));
 }
 
 /**
@@ -264,15 +262,9 @@ function isNetworkError(message: string): boolean {
  * @internal Helper for error classification
  */
 function isTimeoutError(message: string): boolean {
-  const timeoutPatterns = [
-    'timeout',
-    'timed out',
-    'deadline exceeded',
-  ];
+  const timeoutPatterns = ['timeout', 'timed out', 'deadline exceeded'];
 
-  return timeoutPatterns.some((pattern) =>
-    message.toLowerCase().includes(pattern.toLowerCase())
-  );
+  return timeoutPatterns.some((pattern) => message.toLowerCase().includes(pattern.toLowerCase()));
 }
 
 /**
@@ -284,12 +276,7 @@ function isTimeoutError(message: string): boolean {
  * @internal Helper for error classification
  */
 function isValidationError(message: string): boolean {
-  const validationPatterns = [
-    'cannot be empty',
-    'must be',
-    'invalid',
-    'expected',
-  ];
+  const validationPatterns = ['cannot be empty', 'must be', 'invalid', 'expected'];
 
   return validationPatterns.some((pattern) =>
     message.toLowerCase().includes(pattern.toLowerCase())
@@ -356,11 +343,7 @@ function logError(code: string, message: string, originalError: unknown): void {
   }
 
   // In production, log only important errors
-  const importantCodes = [
-    'AUTHENTICATION_FAILED',
-    'INTERNAL_SERVER_ERROR',
-    'RESOURCE_EXHAUSTED',
-  ];
+  const importantCodes = ['AUTHENTICATION_FAILED', 'INTERNAL_SERVER_ERROR', 'RESOURCE_EXHAUSTED'];
 
   if (importantCodes.includes(code)) {
     console.error(`[${code}] ${message}`);

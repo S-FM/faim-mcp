@@ -65,7 +65,7 @@ export function initializeClient(): void {
     if (!apiKey || apiKey.trim().length === 0) {
       initializationError = new Error(
         'FAIM_API_KEY environment variable is not set. ' +
-        'Please set it before starting the MCP server.'
+          'Please set it before starting the MCP server.'
       );
       throw initializationError;
     }
@@ -86,7 +86,6 @@ export function initializeClient(): void {
       // Users can override via FAIM_API_BASE_URL environment variable
       baseUrl: process.env.FAIM_API_BASE_URL,
     });
-
   } catch (error) {
     // Store the error for later retrieval
     initializationError = error instanceof Error ? error : new Error(String(error));
@@ -122,9 +121,7 @@ export function getClient(): FaimClient {
 
   // If initialization hasn't been attempted, indicate this is a startup issue
   if (!clientInstance) {
-    throw new Error(
-      'FAIM client not initialized. Call initializeClient() during server startup.'
-    );
+    throw new Error('FAIM client not initialized. Call initializeClient() during server startup.');
   }
 
   return clientInstance;

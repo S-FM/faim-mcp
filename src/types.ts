@@ -148,9 +148,7 @@ export interface ForecastRequest {
  * For point forecasts: { point: number[][][] }
  * For quantile forecasts: { quantiles: number[][][][] }
  */
-export type ForecastOutput =
-  | { point: number[][][] }
-  | { quantiles: number[][][][] };
+export type ForecastOutput = { point: number[][][] } | { quantiles: number[][][][] };
 
 /**
  * Complete response from a successful forecast operation

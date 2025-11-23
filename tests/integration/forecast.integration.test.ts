@@ -347,7 +347,13 @@ describe('Forecast Integration Tests', () => {
   it('should forecast with 3D multivariate array (Chronos2)', async () => {
     const request = {
       model: 'chronos2',
-      x: [[[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]]],
+      x: [
+        [
+          [1.0, 2.0, 3.0],
+          [4.0, 5.0, 6.0],
+          [7.0, 8.0, 9.0],
+        ],
+      ],
       horizon: 1,
       output_type: 'point' as const,
     };
@@ -875,9 +881,7 @@ describe('Forecast Integration Tests', () => {
     expect(result2.success).toBe(true);
     if (result1.success && result2.success) {
       // Results should be identical for same input
-      expect(JSON.stringify(result1.data.forecast)).toBe(
-        JSON.stringify(result2.data.forecast)
-      );
+      expect(JSON.stringify(result1.data.forecast)).toBe(JSON.stringify(result2.data.forecast));
     }
   });
 

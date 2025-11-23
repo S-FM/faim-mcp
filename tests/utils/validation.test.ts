@@ -77,7 +77,11 @@ describe('validateForecastRequest', () => {
   it('should accept 2D array input (multivariate)', () => {
     const request = {
       model: 'chronos2',
-      x: [[1, 2], [3, 4], [5, 6]],
+      x: [
+        [1, 2],
+        [3, 4],
+        [5, 6],
+      ],
       horizon: 10,
     };
 
@@ -397,7 +401,11 @@ describe('normalizeInput', () => {
     });
 
     it('should flatten 2D array for TiRex model (is_multivariate ignored)', () => {
-      const input = [[1, 2], [3, 4], [5, 6]];
+      const input = [
+        [1, 2],
+        [3, 4],
+        [5, 6],
+      ];
       const normalized = normalizeInput(input, 'tirex', true); // is_multivariate=true but should be ignored for TiRex
 
       expect(normalized).toHaveLength(1); // batch size 1
@@ -409,7 +417,11 @@ describe('normalizeInput', () => {
 
   describe('2D array handling with is_multivariate=true (Chronos2 only)', () => {
     it('should keep 2D array as multivariate for Chronos2 with is_multivariate=true', () => {
-      const input = [[1, 2], [3, 4], [5, 6]]; // shape [3, 2] -> multivariate (3 timesteps, 2 features)
+      const input = [
+        [1, 2],
+        [3, 4],
+        [5, 6],
+      ]; // shape [3, 2] -> multivariate (3 timesteps, 2 features)
       const normalized = normalizeInput(input, 'chronos2', true);
 
       expect(normalized).toHaveLength(1); // batch size 1
@@ -431,19 +443,33 @@ describe('normalizeInput', () => {
     });
 
     it('should handle many features multivariate 2D array', () => {
-      const input = [[10, 20, 30], [40, 50, 60], [70, 80, 90], [100, 110, 120]];
+      const input = [
+        [10, 20, 30],
+        [40, 50, 60],
+        [70, 80, 90],
+        [100, 110, 120],
+      ];
       const normalized = normalizeInput(input, 'chronos2', true);
 
       expect(normalized).toHaveLength(1); // batch size 1
       expect(normalized[0]).toHaveLength(4); // 4 time steps
       expect(normalized[0][0]).toHaveLength(3); // 3 features
-      expect(normalized[0]).toEqual([[10, 20, 30], [40, 50, 60], [70, 80, 90], [100, 110, 120]]);
+      expect(normalized[0]).toEqual([
+        [10, 20, 30],
+        [40, 50, 60],
+        [70, 80, 90],
+        [100, 110, 120],
+      ]);
     });
   });
 
   describe('2D array handling with is_multivariate=false (explicit batch inference)', () => {
     it('should flatten 2D array for Chronos2 with is_multivariate=false', () => {
-      const input = [[1, 2], [3, 4], [5, 6]];
+      const input = [
+        [1, 2],
+        [3, 4],
+        [5, 6],
+      ];
       const normalized = normalizeInput(input, 'chronos2', false);
 
       // With is_multivariate=false, should flatten to: [1, 2, 3, 4, 5, 6]
@@ -490,7 +516,12 @@ describe('normalizeInput', () => {
 
   describe('3D array handling with is_multivariate flag', () => {
     it('should ignore is_multivariate flag for 3D array', () => {
-      const input = [[[1, 2], [3, 4]]];
+      const input = [
+        [
+          [1, 2],
+          [3, 4],
+        ],
+      ];
       const normalized = normalizeInput(input, 'chronos2', true);
 
       // is_multivariate should be ignored for 3D arrays
@@ -544,12 +575,25 @@ describe('getArrayShape', () => {
   });
 
   it('should get shape of 2D array', () => {
-    const shape = getArrayShape([[1, 2], [3, 4], [5, 6]]);
+    const shape = getArrayShape([
+      [1, 2],
+      [3, 4],
+      [5, 6],
+    ]);
     expect(shape).toEqual([3, 2]);
   });
 
   it('should get shape of 3D array', () => {
-    const shape = getArrayShape([[[1, 2], [3, 4]], [[5, 6], [7, 8]]]);
+    const shape = getArrayShape([
+      [
+        [1, 2],
+        [3, 4],
+      ],
+      [
+        [5, 6],
+        [7, 8],
+      ],
+    ]);
     expect(shape).toEqual([2, 2, 2]);
   });
 

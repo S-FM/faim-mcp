@@ -121,12 +121,39 @@ server.tool(
   'forecast',
   'Perform time series forecasting using FAIM platform. Supports both point forecasting (single value) and probabilistic forecasting (confidence intervals). Can handle univariate and multivariate time series data. Currently supported models: Chronos2 (default, recommended for multivariate) and TiRex (fast, univariate only).',
   {
-    model: z.enum(['chronos2', 'tirex']).describe('The forecasting model to use. Chronos2: State-of-the-art, supports univariate/multivariate, custom quantiles. TiRex: Fast alternative for univariate only, uses fixed quantiles [0.1,0.2,...,0.9], custom quantiles parameter ignored.'),
-    x: z.any().describe('Time series data to forecast from. Can be a 1D array (single series), 2D array (multiple series/batch or multivariate per model), or 3D array (batch, sequence, features).'),
-    horizon: z.number().describe('Number of time steps to forecast into the future. Must be a positive integer. Example: 10 means predict the next 10 steps.'),
-    output_type: z.enum(['point', 'quantiles']).optional().describe('Type of forecast output. "point" = single value per step (fastest). "quantiles" = confidence intervals (use for uncertainty estimation). Default: "point".'),
-    quantiles: z.array(z.number()).optional().describe('Custom quantile levels to compute (only used with output_type="quantiles" and Chronos2 model). For TiRex, this parameter is ignored and fixed quantiles [0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9] are always returned. Values must be between 0 and 1. Example: [0.1, 0.5, 0.9] for 10th, 50th, 90th percentiles.'),
-    is_multivariate: z.boolean().optional().describe('For 2D input arrays only with Chronos2: interpret as multivariate time series (true) or batch of univariate series (false, default). Ignored for 1D arrays, 3D arrays, and TiRex model.'),
+    model: z
+      .enum(['chronos2', 'tirex'])
+      .describe(
+        'The forecasting model to use. Chronos2: State-of-the-art, supports univariate/multivariate, custom quantiles. TiRex: Fast alternative for univariate only, uses fixed quantiles [0.1,0.2,...,0.9], custom quantiles parameter ignored.'
+      ),
+    x: z
+      .any()
+      .describe(
+        'Time series data to forecast from. Can be a 1D array (single series), 2D array (multiple series/batch or multivariate per model), or 3D array (batch, sequence, features).'
+      ),
+    horizon: z
+      .number()
+      .describe(
+        'Number of time steps to forecast into the future. Must be a positive integer. Example: 10 means predict the next 10 steps.'
+      ),
+    output_type: z
+      .enum(['point', 'quantiles'])
+      .optional()
+      .describe(
+        'Type of forecast output. "point" = single value per step (fastest). "quantiles" = confidence intervals (use for uncertainty estimation). Default: "point".'
+      ),
+    quantiles: z
+      .array(z.number())
+      .optional()
+      .describe(
+        'Custom quantile levels to compute (only used with output_type="quantiles" and Chronos2 model). For TiRex, this parameter is ignored and fixed quantiles [0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9] are always returned. Values must be between 0 and 1. Example: [0.1, 0.5, 0.9] for 10th, 50th, 90th percentiles.'
+      ),
+    is_multivariate: z
+      .boolean()
+      .optional()
+      .describe(
+        'For 2D input arrays only with Chronos2: interpret as multivariate time series (true) or batch of univariate series (false, default). Ignored for 1D arrays, 3D arrays, and TiRex model.'
+      ),
   },
   async ({ model, x, horizon, output_type, quantiles, is_multivariate }: any) => {
     const result = await forecast({
@@ -176,7 +203,6 @@ async function main(): Promise<void> {
     // Connect server to transport
     // The transport handles all JSON-RPC protocol details
     await server.connect(transport);
-
   } catch (error) {
     console.error('[MCP] Failed to start server:', error);
     process.exit(1);

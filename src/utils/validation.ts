@@ -197,7 +197,9 @@ export function validateForecastRequest(request: unknown): ErrorResponse | null 
  *
  * @internal Internal helper for validateForecastRequest
  */
-function validateArrayInput(x: unknown): { error_code: string; message: string; details?: string } | null {
+function validateArrayInput(
+  x: unknown
+): { error_code: string; message: string; details?: string } | null {
   if (!Array.isArray(x)) {
     return {
       error_code: 'INVALID_PARAMETER',

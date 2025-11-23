@@ -37,9 +37,7 @@ import { transformError } from '../utils/errors.js';
  * @param request - Pre-validated forecast request
  * @returns {Promise<ToolResult<ForecastResponse>>} Either success with predictions or error
  */
-export async function forecast(
-  request: unknown
-): Promise<ToolResult<ForecastResponse>> {
+export async function forecast(request: unknown): Promise<ToolResult<ForecastResponse>> {
   try {
     // Validate request before processing
     const validationError = validateForecastRequest(request);
@@ -75,7 +73,6 @@ export async function forecast(
       forecastRequest.is_multivariate || false
     );
     const outputShape = getArrayShape(normalizedX);
-
 
     // Get the FAIM client (singleton initialized at server startup)
     const client = getClient();
@@ -150,7 +147,6 @@ export async function forecast(
         output_shape: outputArrayShape,
       },
     };
-
 
     return {
       success: true,

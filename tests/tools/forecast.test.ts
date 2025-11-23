@@ -146,7 +146,11 @@ describe('forecast tool', () => {
   it('should accept 2D array input (multivariate)', async () => {
     const request = {
       model: 'chronos2',
-      x: [[1, 2], [3, 4], [5, 6]],
+      x: [
+        [1, 2],
+        [3, 4],
+        [5, 6],
+      ],
       horizon: 10,
       is_multivariate: true,
     };
@@ -154,7 +158,13 @@ describe('forecast tool', () => {
     const result = await forecast(request);
 
     expect(result.success).toBe(true);
-    const expectedX = [[[1, 2], [3, 4], [5, 6]]];
+    const expectedX = [
+      [
+        [1, 2],
+        [3, 4],
+        [5, 6],
+      ],
+    ];
     expect(mockClient.forecastChronos2).toHaveBeenCalledWith(
       expect.objectContaining({ x: expectedX })
     );
