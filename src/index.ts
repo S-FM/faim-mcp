@@ -4,14 +4,14 @@
  * FAIM MCP Server
  *
  * Main entry point for the Model Context Protocol server that provides
- * Claude with access to FAIM's time series forecasting capabilities.
+ * LLM with access to FAIM's time series forecasting capabilities.
  *
  * This implementation uses the official @modelcontextprotocol/sdk package,
  * which provides production-ready abstractions for MCP protocol handling.
  *
  * Architecture Overview:
  * ┌─────────────────────────────────────────┐
- * │          Claude (via MCP Client)        │
+ * │          LLM (via MCP Client)        │
  * └──────────────────┬──────────────────────┘
  *                    │
  *                    │ MCP Protocol (JSON-RPC 2.0)
@@ -48,7 +48,7 @@
  * 4. Creates McpServer instance with capabilities
  * 5. Registers tools with their handlers
  * 6. Connects to StdioServerTransport
- * 7. Waits for Claude to call tools
+ * 7. Waits for LLM to call tools
  *
  * Error Handling:
  * - Startup errors: Fail fast if API key is missing
@@ -119,21 +119,23 @@ server.tool(
  */
 (server.tool as any)(
   'forecast',
-  'Perform time series forecasting using FAIM models. Supports both point forecasting (single value) and probabilistic forecasting (confidence intervals). Can handle univariate and multivariate time series data.',
+  'Perform time series forecasting using FAIM platform. Supports both point forecasting (single value) and probabilistic forecasting (confidence intervals). Can handle univariate and multivariate time series data. Currently supported models: Chronos2 (default, recommended for multivariate) and TiRex (fast, univariate only).',
   {
-    model: z.enum(['chronos2', 'tirex']).describe('The forecasting model to use. Chronos2 is the general-purpose model. TiRex is an alternative with different characteristics.'),
-    x: z.any().describe('Time series data to forecast from. Can be a 1D array (single series), 2D array (multiple series or multivariate), or 3D array (batch, sequence, features).'),
+    model: z.enum(['chronos2', 'tirex']).describe('The forecasting model to use. Chronos2: State-of-the-art, supports univariate/multivariate, custom quantiles. TiRex: Fast alternative for univariate only, uses fixed quantiles [0.1,0.2,...,0.9], custom quantiles parameter ignored.'),
+    x: z.any().describe('Time series data to forecast from. Can be a 1D array (single series), 2D array (multiple series/batch or multivariate per model), or 3D array (batch, sequence, features).'),
     horizon: z.number().describe('Number of time steps to forecast into the future. Must be a positive integer. Example: 10 means predict the next 10 steps.'),
-    output_type: z.enum(['point', 'quantiles']).optional().describe('Type of forecast output. "point" = single value per step (fastest). "quantiles" = confidence intervals (use for uncertainty).'),
-    quantiles: z.array(z.number()).optional().describe('Quantile levels to compute (only used with output_type="quantiles"). Values between 0 and 1. Example: [0.1, 0.5, 0.9] for 10th, 50th, 90th percentiles.'),
+    output_type: z.enum(['point', 'quantiles']).optional().describe('Type of forecast output. "point" = single value per step (fastest). "quantiles" = confidence intervals (use for uncertainty estimation). Default: "point".'),
+    quantiles: z.array(z.number()).optional().describe('Custom quantile levels to compute (only used with output_type="quantiles" and Chronos2 model). For TiRex, this parameter is ignored and fixed quantiles [0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9] are always returned. Values must be between 0 and 1. Example: [0.1, 0.5, 0.9] for 10th, 50th, 90th percentiles.'),
+    is_multivariate: z.boolean().optional().describe('For 2D input arrays only with Chronos2: interpret as multivariate time series (true) or batch of univariate series (false, default). Ignored for 1D arrays, 3D arrays, and TiRex model.'),
   },
-  async ({ model, x, horizon, output_type, quantiles }: any) => {
+  async ({ model, x, horizon, output_type, quantiles, is_multivariate }: any) => {
     const result = await forecast({
       model,
       x,
       horizon,
       output_type: output_type || 'point',
       quantiles,
+      is_multivariate,
     });
 
     if (!result.success) {
@@ -159,7 +161,7 @@ server.tool(
  * 1. Initializes the FAIM client (ensures API key is available)
  * 2. Creates a StdioServerTransport for stdin/stdout communication
  * 3. Connects the server to the transport
- * 4. Waits for incoming requests from Claude
+ * 4. Waits for incoming requests from LLM
  *
  * The server will run until the process is terminated.
  */

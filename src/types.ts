@@ -43,9 +43,8 @@ export interface ModelInfo {
  *
  * - "point": Single scalar point estimate for each forecast step
  * - "quantiles": Multiple quantile levels (e.g., 0.1, 0.5, 0.9 for confidence intervals)
- * - "samples": Multiple sample draws from the forecast distribution
  */
-export type OutputType = 'point' | 'quantiles' | 'samples';
+export type OutputType = 'point' | 'quantiles';
 
 /**
  * Input parameters for the unified forecast tool
@@ -53,7 +52,7 @@ export type OutputType = 'point' | 'quantiles' | 'samples';
  * This represents the complete set of options users can pass to perform
  * a forecast. The tool validates these inputs before passing to the SDK.
  *
- * LLM Context: When Claude calls the forecast tool, it will structure
+ * LLM Context: When LLM calls the forecast tool, it will structure
  * the request according to these fields.
  */
 export interface ForecastRequest {
@@ -93,7 +92,6 @@ export interface ForecastRequest {
    *
    * - "point": Single best estimate (fastest, smallest output)
    * - "quantiles": Multiple confidence levels for uncertainty quantification
-   * - "samples": Multiple draws from distribution (for uncertainty analysis)
    *
    * Default: "point"
    */
@@ -102,34 +100,64 @@ export interface ForecastRequest {
   /**
    * Custom quantile levels to compute (only used when output_type is "quantiles")
    *
-   * Values must be between 0 and 1. Examples:
-   * - [0.1, 0.5, 0.9]: 10th, 50th (median), 90th percentiles
-   * - [0.025, 0.975]: 95% confidence interval
-   * - [0.5]: Just the median
+   * IMPORTANT: Only applies to Chronos2 model. TiRex always uses fixed quantiles.
    *
-   * Default if not provided: [0.1, 0.5, 0.9]
+   * Chronos2:
+   * - Accepts custom quantile values between 0 and 1
+   * - Examples: [0.1, 0.5, 0.9] for 10th, 50th, 90th percentiles
+   * - Example: [0.025, 0.975] for 95% confidence interval
+   * - Default if not provided: [0.1, 0.5, 0.9]
+   *
+   * TiRex:
+   * - Ignores this parameter completely
+   * - Always returns fixed quantiles: [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
    */
   quantiles?: number[];
+
+  /**
+   * Whether to treat 2D input as multivariate time series
+   *
+   * IMPORTANT: This flag only applies to 2D input arrays and only for Chronos2 model.
+   * - For 1D arrays: This flag is ignored (always treated as univariate)
+   * - For 3D arrays: This flag is ignored (format is explicit)
+   * - For other models (TiRex): This flag is ignored
+   *
+   * Behavior with 2D arrays on Chronos2:
+   * - is_multivariate: false (default):
+   *   Input: [[1, 2, 3, 4, 5]] (shape: [5, 1])
+   *   Transforms to: [[[1], [2], [3], [4], [5]]] (shape: [1, 5, 1])
+   *   Interpretation: Batch inference - single feature with 5 timesteps
+   *
+   * - is_multivariate: true:
+   *   Input: [[1, 2], [3, 4], [5, 6]] (shape: [3, 2])
+   *   Transforms to: [[[1, 2], [3, 4], [5, 6]]] (shape: [1, 3, 2])
+   *   Interpretation: Multifeature inference - 3 timesteps with 2 features each
+   *
+   * Default: false
+   *
+   * Example use cases:
+   * - false: You have multiple independent time series to forecast together
+   * - true: You have a single multivariate time series (e.g., temperature + humidity)
+   */
+  is_multivariate?: boolean;
 }
 
 /**
  * Individual output element from a single forecast
  *
- * For point forecasts: { point: number[] }
- * For quantile forecasts: { quantiles: number[][] }
- * For sample forecasts: { samples: number[][] }
+ * For point forecasts: { point: number[][][] }
+ * For quantile forecasts: { quantiles: number[][][][] }
  */
 export type ForecastOutput =
   | { point: number[][][] }
-  | { quantiles: number[][][][] }
-  | { samples: number[][][][] };
+  | { quantiles: number[][][][] };
 
 /**
  * Complete response from a successful forecast operation
  *
- * This is what the forecast tool returns to Claude after successful prediction
+ * This is what the forecast tool returns to LLM after successful prediction
  *
- * LLM Context: This structure is what Claude receives and can interpret.
+ * LLM Context: This structure is what LLM receives and can interpret.
  * The arrays are structured to be easy to understand and convert back
  * to the original data format if needed.
  */
@@ -189,7 +217,7 @@ export interface ErrorResponse {
  * Generic result type for MCP tool responses
  *
  * All tools return either success or failure, never throwing.
- * This allows Claude to handle errors gracefully without crashes.
+ * This allows LLM to handle errors gracefully without crashes.
  *
  * LLM Context: MCP tools should never throw errors - they should
  * always return a Result with either data or an error object.

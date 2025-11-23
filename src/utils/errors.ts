@@ -12,9 +12,9 @@
  * 5. Log errors for debugging and monitoring
  *
  * Error Flow:
- * SDK throws error → caught → analyzed → transformed → returned to Claude
+ * SDK throws error → caught → analyzed → transformed → returned to LLM
  *
- * LLM Context: This module ensures errors are meaningful to Claude and humans
+ * LLM Context: This module ensures errors are meaningful to LLM and humans
  * without exposing internal implementation details.
  */
 

@@ -124,7 +124,7 @@ export NODE_ENV=development
 
 ## MCP Compatibility
 
-This server implements the **Model Context Protocol (MCP)**, an open protocol for connecting AI assistants to external tools and data sources. MCP is not limited to Claude - it works with any application that implements an MCP client.
+This server implements the **Model Context Protocol (MCP)**, an open protocol for connecting AI assistants to external tools and data sources. It works with any LLM and application that implements an MCP client.
 
 ### Using with Any LLM or System
 

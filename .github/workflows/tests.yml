@@ -15,7 +15,7 @@ jobs:
 
     strategy:
       matrix:
-        node-version: [18.x, 20.x, 22.x, 24.x]
+        node-version: [20.x, 22.x]
 
     steps:
       - uses: actions/checkout@v4
@@ -28,8 +28,11 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Run type checking
+      - name: Run type checking and linting
         run: npm run lint
+
+      - name: Check code formatting
+        run: npm run format:check
 
       - name: Build project
         run: npm run build
@@ -39,4 +42,3 @@ jobs:
 
       - name: Run integration tests
         run: npm run test:integration
-        continue-on-error: true

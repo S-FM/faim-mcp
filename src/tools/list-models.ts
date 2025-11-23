@@ -58,29 +58,35 @@ export async function listModels(): Promise<ToolResult<ListModelsResponse>> {
         version: '1.0',
         description:
           'State-of-the-art general-purpose time series forecasting model. Supports both point and probabilistic (quantile) forecasting. Best for univariate and multivariate time series with various seasonal and trend patterns.',
-        supportedOutputTypes: ['point', 'quantiles', 'samples'],
+        supportedOutputTypes: ['point', 'quantiles'],
         supportsQuantiles: true,
       },
       {
         /**
          * TiRex Model
          *
-         * An alternative time series forecasting model with different
-         * architecture and characteristics from Chronos2.
+         * An alternative time series forecasting model optimized for speed
+         * with different architecture and characteristics from Chronos2.
          *
-         * Use TiRex when:
-         * - You want to ensemble predictions from multiple models
-         * - You're comparing different forecasting approaches
-         * - You have specific requirements that favor TiRex's architecture
+         * Best for:
+         * - Fast inference on univariate time series
+         * - Ensemble forecasting with multiple models
+         * - Comparing different forecasting approaches
          *
-         * Note: Check API documentation for specific capabilities and differences
+         * Capabilities:
+         * - Univariate time series only (single variable)
+         * - Point and quantile forecasting
+         * - Supports default quantiles [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
+         * - Does not support custom quantiles
+         *
+         * Note: TiRex is faster but less flexible than Chronos2
          */
         id: 'tirex',
         name: 'TiRex',
         version: '1.0',
         description:
-          'Alternative time series forecasting model. Provides a different architectural approach compared to Chronos2. Useful for ensemble forecasting and comparing multiple model perspectives.',
-        supportedOutputTypes: ['point', 'quantiles', 'samples'],
+          'Fast alternative time series forecasting model optimized for univariate series. Supports point and quantile forecasting with default quantiles. Useful for ensemble forecasting and rapid inference on single-variable time series.',
+        supportedOutputTypes: ['point', 'quantiles'],
         supportsQuantiles: true,
       },
     ];

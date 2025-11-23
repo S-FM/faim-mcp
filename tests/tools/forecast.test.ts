@@ -148,6 +148,7 @@ describe('forecast tool', () => {
       model: 'chronos2',
       x: [[1, 2], [3, 4], [5, 6]],
       horizon: 10,
+      is_multivariate: true,
     };
 
     const result = await forecast(request);
@@ -287,14 +288,14 @@ describe('forecast tool', () => {
     const request = {
       model: 'chronos2',
       x: [1, 2, 3],
-      horizon: 10000,
+      horizon: 1024,
     };
 
     const result = await forecast(request);
 
     expect(result.success).toBe(true);
     expect(mockClient.forecastChronos2).toHaveBeenCalledWith(
-      expect.objectContaining({ horizon: 10000 })
+      expect.objectContaining({ horizon: 1024 })
     );
   });
 

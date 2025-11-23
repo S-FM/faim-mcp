@@ -15,7 +15,7 @@
 
 import { ForecastRequest, ForecastResponse, ToolResult } from '../types.js';
 import { getClient } from '../utils/client.js';
-import { normalizeInput, getArrayShape } from '../utils/validation.js';
+import { normalizeInput, getArrayShape, validateForecastRequest } from '../utils/validation.js';
 import { transformError } from '../utils/errors.js';
 
 /**
@@ -27,6 +27,10 @@ import { transformError } from '../utils/errors.js';
  * 3. Transforms the response into ForecastResponse format
  * 4. Handles errors gracefully
  *
+ * Model-specific behavior:
+ * - Chronos2: Supports univariate/multivariate, custom quantiles
+ * - TiRex: Univariate only, fixed quantiles [0.1-0.9], ignores custom quantiles parameter
+ *
  * Note: Input validation is performed by Zod at the SDK layer.
  * This function can assume all inputs are valid.
  *
@@ -37,8 +41,20 @@ export async function forecast(
   request: unknown
 ): Promise<ToolResult<ForecastResponse>> {
   try {
-    // Cast to typed request (already validated by Zod at SDK layer)
-    const forecastRequest = request as ForecastRequest;
+    // Validate request before processing
+    const validationError = validateForecastRequest(request);
+    if (validationError) {
+      return {
+        success: false,
+        error: validationError,
+      };
+    }
+
+    // Cast to typed request (already validated above)
+    let forecastRequest = request as Partial<ForecastRequest> & { x: unknown; horizon: number };
+
+    // Set default model to chronos2 if not provided
+    const model = (forecastRequest.model || 'chronos2') as 'chronos2' | 'tirex';
 
     // Handle case where x might be passed as a JSON string (e.g., from Claude XML)
     let xData = forecastRequest.x;
@@ -52,7 +68,12 @@ export async function forecast(
 
     // Normalize input array to 3D format
     // Users can pass 1D or 2D arrays; we convert to SDK's required 3D format
-    const normalizedX = normalizeInput(xData as number[] | number[][] | number[][][]);
+    // The is_multivariate flag only affects 2D arrays with Chronos2 model
+    const normalizedX = normalizeInput(
+      xData as number[] | number[][] | number[][][],
+      model,
+      forecastRequest.is_multivariate || false
+    );
     const outputShape = getArrayShape(normalizedX);
 
 
@@ -63,14 +84,14 @@ export async function forecast(
     const startTime = Date.now();
     let result;
 
-    if (forecastRequest.model === 'chronos2') {
+    if (model === 'chronos2') {
       result = await client.forecastChronos2({
         x: normalizedX,
         horizon: forecastRequest.horizon,
         output_type: forecastRequest.output_type || 'point',
         quantiles: forecastRequest.quantiles,
       });
-    } else if (forecastRequest.model === 'tirex') {
+    } else if (model === 'tirex') {
       result = await client.forecastTiRex({
         x: normalizedX,
         horizon: forecastRequest.horizon,
@@ -78,8 +99,8 @@ export async function forecast(
         ...(forecastRequest.quantiles ? { quantiles: forecastRequest.quantiles } : {}),
       } as any);
     } else {
-      // Should never happen due to Zod validation
-      throw new Error(`Unknown model: ${forecastRequest.model}`);
+      // Should never happen
+      throw new Error(`Unknown model: ${model}`);
     }
 
     const duration = Date.now() - startTime;
@@ -89,7 +110,7 @@ export async function forecast(
       return {
         success: false,
         error: transformError(result.error, {
-          operation: `${forecastRequest.model} forecast`,
+          operation: `${model} forecast`,
         }),
       };
     }

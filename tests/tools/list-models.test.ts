@@ -14,7 +14,7 @@
  * - Verify JSON serializability (for MCP transport)
  *
  * LLM Context: These tests document what the list_models tool returns
- * and ensure the response is suitable for MCP transmission to Claude.
+ * and ensure the response is suitable for MCP transmission to LLM.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -94,9 +94,9 @@ describe('listModels tool', () => {
     expect(result.success).toBe(true);
     if (result.success) {
       const chronos2 = result.data.models.find((m) => m.id === 'chronos2');
+      expect(chronos2?.supportedOutputTypes).toHaveLength(2);
       expect(chronos2?.supportedOutputTypes).toContain('point');
       expect(chronos2?.supportedOutputTypes).toContain('quantiles');
-      expect(chronos2?.supportedOutputTypes).toContain('samples');
     }
   });
 

@@ -32,7 +32,7 @@ import { ErrorResponse } from '../types.js';
  * - Checks for empty or null inputs
  *
  * Returns early with detailed error messages instead of throwing,
- * allowing the caller to return error to Claude without crashing.
+ * allowing the caller to return error to LLM without crashing.
  *
  * @param request - The forecast request to validate
  * @returns {null | ErrorResponse} null if valid, error object if invalid
@@ -57,22 +57,16 @@ export function validateForecastRequest(request: unknown): ErrorResponse | null 
 
   const req = request as Record<string, unknown>;
 
-  // Validate model field
-  if (!req.model) {
-    return {
-      error_code: 'MISSING_REQUIRED_FIELD',
-      message: 'Missing required field: model',
-      field: 'model',
-    };
-  }
-
-  if (typeof req.model !== 'string' || !['chronos2', 'tirex'].includes(req.model)) {
-    return {
-      error_code: 'INVALID_PARAMETER',
-      message: 'Model must be either "chronos2" or "tirex"',
-      field: 'model',
-      details: `Got: ${req.model}`,
-    };
+  // Validate model field (optional, defaults to chronos2)
+  if (req.model !== undefined && req.model !== null) {
+    if (typeof req.model !== 'string' || !['chronos2', 'tirex'].includes(req.model)) {
+      return {
+        error_code: 'INVALID_PARAMETER',
+        message: 'Model must be either "chronos2" or "tirex"',
+        field: 'model',
+        details: `Got: ${req.model}`,
+      };
+    }
   }
 
   // Validate horizon field
@@ -102,11 +96,11 @@ export function validateForecastRequest(request: unknown): ErrorResponse | null 
     };
   }
 
-  // Reasonable upper bound for horizon (prevent memory exhaustion)
-  if (req.horizon > 10000) {
+  // Reasonable upper bound for horizon (API limit is 1024)
+  if (req.horizon > 1024) {
     return {
       error_code: 'INVALID_VALUE_RANGE',
-      message: 'Horizon is too large. Maximum supported is 10000',
+      message: 'Horizon is too large. Maximum supported is 1024',
       field: 'horizon',
       details: `Got: ${req.horizon}`,
     };
@@ -324,41 +318,71 @@ function validateArrayInput(x: unknown): { error_code: string; message: string; 
  *    Input:  [1, 2, 3, 4, 5]
  *    Meaning: 5 univariate timesteps
  *    Output: [[[1], [2], [3], [4], [5]]]  (shape: [1, 5, 1] = [b=1, c=5, f=1])
+ *    Note: is_multivariate flag is ignored for 1D arrays
  *
- * 2. 3D ARRAY - Already in correct format with shape (b, c, f):
+ * 2D ARRAY HANDLING (Chronos2 model):
+ *    With is_multivariate: false (default - batch inference):
+ *    Input:  [[1, 2, 3, 4, 5]] (shape: [5, 1])
+ *    Output: [[[1], [2], [3], [4], [5]]] (shape: [b=1, c=5, f=1])
+ *    Interpretation: 5 timesteps, 1 feature (univariate)
+ *
+ *    With is_multivariate: true (multifeature inference):
+ *    Input:  [[1, 2], [3, 4], [5, 6]] (shape: [3, 2])
+ *    Output: [[[1, 2], [3, 4], [5, 6]]] (shape: [b=1, c=3, f=2])
+ *    Interpretation: 3 timesteps, 2 features (multivariate)
+ *
+ *    For other models (TiRex): is_multivariate flag is ignored, defaults to batch inference
+ *
+ * 3. 3D ARRAY - Already in correct format with shape (b, c, f):
  *    Input:  [[[1], [2], [3]]]
  *    Meaning: 1 batch, 3 timesteps, 1 feature (univariate)
  *    Output: [[[1], [2], [3]]]  (unchanged, shape: [1, 3, 1])
+ *    Note: is_multivariate flag is ignored for 3D arrays
  *
  *    Input:  [[[100, 50, 200], [102, 51, 205]]]
  *    Meaning: 1 batch, 2 timesteps, 3 features (multivariate)
  *    Output: [[[100, 50, 200], [102, 51, 205]]]  (unchanged, shape: [1, 2, 3])
  *
- * Note: 2D arrays [[1, 2], [3, 4]] are also accepted (treated as multivariate single batch)
- *
  * @param input - Raw input from user (1D, 2D, or 3D array)
+ * @param model - The forecasting model (chronos2 or tirex)
+ * @param isMultivariate - For 2D arrays with Chronos2: treat as multivariate (true) or batch (false, default)
  * @returns {number[][][]} Normalized 3D array with shape [b, c, f]
  *
  * Example (for LLMs):
  * ```typescript
  * // 1D input: Single univariate time series
- * normalizeInput([1, 2, 3, 4, 5])
+ * normalizeInput([1, 2, 3, 4, 5], 'chronos2', false)
  * // Returns: [[[1], [2], [3], [4], [5]]]
  * // Shape: [b=1, c=5, f=1]
  *
+ * // 2D input: Batch inference (default for 2D)
+ * normalizeInput([[1, 2, 3]], 'chronos2', false)
+ * // Returns: [[[1], [2], [3]]]
+ * // Shape: [b=1, c=3, f=1] - treat as single sequence with 3 timesteps
+ *
+ * // 2D input: Multifeature inference (with is_multivariate=true)
+ * normalizeInput([[1, 2], [3, 4]], 'chronos2', true)
+ * // Returns: [[[1, 2], [3, 4]]]
+ * // Shape: [b=1, c=2, f=2] - treat as 2 timesteps with 2 features each
+ *
  * // 3D input: Already correct format (multivariate, single batch)
- * normalizeInput([[[100, 50], [102, 51], [105, 52]]])
+ * normalizeInput([[[100, 50], [102, 51], [105, 52]]], 'chronos2', false)
  * // Returns: [[[100, 50], [102, 51], [105, 52]]]  (unchanged)
  * // Shape: [b=1, c=3, f=2]
  * ```
  */
-export function normalizeInput(input: number[] | number[][] | number[][][]): number[][][] {
+export function normalizeInput(
+  input: number[] | number[][] | number[][][],
+  model: string = 'chronos2',
+  isMultivariate: boolean = false
+): number[][][] {
   // Handle empty array edge case
   if (input.length === 0) {
     throw new Error('Time series data cannot be empty. Provide at least one value.');
   }
 
   // Already 3D? Return as-is (shape: [b, c, f])
+  // is_multivariate flag is ignored for 3D arrays
   if (Array.isArray(input[0]) && Array.isArray(input[0][0])) {
     return input as number[][][];
   }
@@ -366,16 +390,35 @@ export function normalizeInput(input: number[] | number[][] | number[][][]): num
   // 1D array (shape: c,) - Univariate time series
   // Example: [1, 2, 3, 4, 5]
   // Transform to 3D: [[[1], [2], [3], [4], [5]]] (shape: [b=1, c=5, f=1])
+  // is_multivariate flag is ignored for 1D arrays
   if (typeof input[0] === 'number') {
     // Convert each scalar to a 1-element array [n] → [[n]]
     // Then wrap in batch dimension [[[1], [2], [3]]]
     return [(input as number[]).map((val) => [val])];
   }
 
-  // 2D array (shape: c, f) - Multivariate single batch
-  // Example: [[1, 2], [3, 4]] represents 2 timesteps with 2 features each
-  // Transform to 3D: [[[1, 2], [3, 4]]] (shape: [b=1, c=2, f=2])
-  // Wrap in batch dimension: [[[1, 2], [3, 4]]]
+  // 2D array (shape: c, f or f, c) - Handling depends on model and is_multivariate flag
+  // is_multivariate flag only applies to Chronos2 model
+  if (Array.isArray(input[0])) {
+    // For Chronos2 with is_multivariate=true: treat as multifeature inference
+    // Input shape (c, f): timesteps × features
+    // Output shape [b=1, c, f]: single batch with timesteps and features
+    if (model === 'chronos2' && isMultivariate) {
+      // Treat as multivariate: [[[feature1_t1, feature2_t1, ...], [feature1_t2, feature2_t2, ...], ...]]
+      // Wrap in batch dimension
+      return [input as number[][]];
+    }
+
+    // Default behavior (Chronos2 with is_multivariate=false, or TiRex, or any other model):
+    // Treat as batch inference
+    // Input shape (c,) or (n,): sequence of values
+    // Output shape [b=1, c, f=1]: batch with timesteps and 1 feature
+    // Flatten the 2D array to 1D and apply 1D transformation
+    const flattened = (input as number[][]).flat();
+    return [flattened.map((val) => [val])];
+  }
+
+  // Shouldn't reach here due to earlier checks
   return [input as number[][]];
 }
 

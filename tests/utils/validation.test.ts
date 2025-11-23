@@ -121,9 +121,8 @@ describe('validateForecastRequest', () => {
     };
 
     const error = validateForecastRequest(request);
-    expect(error).not.toBeNull();
-    expect(error?.error_code).toBe('MISSING_REQUIRED_FIELD');
-    expect(error?.field).toBe('model');
+    // Model is now optional (defaults to chronos2)
+    expect(error).toBeNull();
   });
 
   it('should reject request without horizon', () => {
@@ -330,7 +329,7 @@ describe('validateForecastRequest', () => {
     const request = {
       model: 'chronos2',
       x: [1, 2, 3],
-      horizon: 10000,
+      horizon: 1024,
     };
 
     const error = validateForecastRequest(request);
@@ -369,16 +368,6 @@ describe('normalizeInput', () => {
     expect(normalized[0][0][0]).toBe(1);
   });
 
-  it('should normalize 2D array (multivariate) to 3D', () => {
-    const input = [[1, 2], [3, 4], [5, 6]];
-    const normalized = normalizeInput(input);
-
-    expect(normalized).toHaveLength(1); // batch size 1
-    expect(normalized[0]).toHaveLength(3); // 3 time steps
-    expect(normalized[0][0]).toHaveLength(2); // 2 features
-    expect(normalized[0][0]).toEqual([1, 2]);
-  });
-
   it('should pass through already 3D array', () => {
     const input = [[[1], [2], [3]]];
     const normalized = normalizeInput(input);
@@ -386,6 +375,159 @@ describe('normalizeInput', () => {
     expect(normalized).toEqual(input);
     expect(normalized).toHaveLength(1);
     expect(normalized[0]).toHaveLength(3);
+  });
+
+  /**
+   * Tests for is_multivariate flag with 2D arrays
+   *
+   * The is_multivariate flag controls how 2D arrays are interpreted:
+   * - false (default): Flatten to univariate (batch inference)
+   * - true (Chronos2 only): Keep as multivariate (multifeature inference)
+   */
+
+  describe('2D array handling without is_multivariate flag', () => {
+    it('should normalize 2D array to 3D with default behavior (batch inference)', () => {
+      const input = [[1, 2, 3]]; // shape [1, 3] -> should flatten to [3,] then expand
+      const normalized = normalizeInput(input, 'chronos2', false);
+
+      expect(normalized).toHaveLength(1); // batch size 1
+      expect(normalized[0]).toHaveLength(3); // 3 time steps
+      expect(normalized[0][0]).toHaveLength(1); // 1 feature (flattened)
+      expect(normalized[0]).toEqual([[1], [2], [3]]);
+    });
+
+    it('should flatten 2D array for TiRex model (is_multivariate ignored)', () => {
+      const input = [[1, 2], [3, 4], [5, 6]];
+      const normalized = normalizeInput(input, 'tirex', true); // is_multivariate=true but should be ignored for TiRex
+
+      expect(normalized).toHaveLength(1); // batch size 1
+      expect(normalized[0]).toHaveLength(6); // 6 time steps after flattening
+      expect(normalized[0][0]).toHaveLength(1); // 1 feature (flattened)
+      expect(normalized[0]).toEqual([[1], [2], [3], [4], [5], [6]]);
+    });
+  });
+
+  describe('2D array handling with is_multivariate=true (Chronos2 only)', () => {
+    it('should keep 2D array as multivariate for Chronos2 with is_multivariate=true', () => {
+      const input = [[1, 2], [3, 4], [5, 6]]; // shape [3, 2] -> multivariate (3 timesteps, 2 features)
+      const normalized = normalizeInput(input, 'chronos2', true);
+
+      expect(normalized).toHaveLength(1); // batch size 1
+      expect(normalized[0]).toHaveLength(3); // 3 time steps
+      expect(normalized[0][0]).toHaveLength(2); // 2 features
+      expect(normalized[0][0]).toEqual([1, 2]);
+      expect(normalized[0][1]).toEqual([3, 4]);
+      expect(normalized[0][2]).toEqual([5, 6]);
+    });
+
+    it('should handle single row 2D array as multivariate (is_multivariate=true)', () => {
+      const input = [[1, 2, 3, 4, 5]]; // shape [1, 5] -> 1 timestep with 5 features
+      const normalized = normalizeInput(input, 'chronos2', true);
+
+      expect(normalized).toHaveLength(1); // batch size 1
+      expect(normalized[0]).toHaveLength(1); // 1 time step
+      expect(normalized[0][0]).toHaveLength(5); // 5 features
+      expect(normalized[0][0]).toEqual([1, 2, 3, 4, 5]);
+    });
+
+    it('should handle many features multivariate 2D array', () => {
+      const input = [[10, 20, 30], [40, 50, 60], [70, 80, 90], [100, 110, 120]];
+      const normalized = normalizeInput(input, 'chronos2', true);
+
+      expect(normalized).toHaveLength(1); // batch size 1
+      expect(normalized[0]).toHaveLength(4); // 4 time steps
+      expect(normalized[0][0]).toHaveLength(3); // 3 features
+      expect(normalized[0]).toEqual([[10, 20, 30], [40, 50, 60], [70, 80, 90], [100, 110, 120]]);
+    });
+  });
+
+  describe('2D array handling with is_multivariate=false (explicit batch inference)', () => {
+    it('should flatten 2D array for Chronos2 with is_multivariate=false', () => {
+      const input = [[1, 2], [3, 4], [5, 6]];
+      const normalized = normalizeInput(input, 'chronos2', false);
+
+      // With is_multivariate=false, should flatten to: [1, 2, 3, 4, 5, 6]
+      // Then expand to 3D: [[[1], [2], [3], [4], [5], [6]]]
+      expect(normalized).toHaveLength(1); // batch size 1
+      expect(normalized[0]).toHaveLength(6); // 6 time steps
+      expect(normalized[0][0]).toHaveLength(1); // 1 feature
+      expect(normalized[0]).toEqual([[1], [2], [3], [4], [5], [6]]);
+    });
+
+    it('should flatten single row 2D array with is_multivariate=false', () => {
+      const input = [[10, 20, 30]];
+      const normalized = normalizeInput(input, 'chronos2', false);
+
+      expect(normalized).toHaveLength(1); // batch size 1
+      expect(normalized[0]).toHaveLength(3); // 3 time steps after flattening
+      expect(normalized[0][0]).toHaveLength(1); // 1 feature
+      expect(normalized[0]).toEqual([[10], [20], [30]]);
+    });
+  });
+
+  describe('1D array handling with is_multivariate flag', () => {
+    it('should ignore is_multivariate=true for 1D array (Chronos2)', () => {
+      const input = [1, 2, 3, 4, 5];
+      const normalized = normalizeInput(input, 'chronos2', true);
+
+      // is_multivariate should be ignored for 1D arrays
+      expect(normalized).toHaveLength(1); // batch size 1
+      expect(normalized[0]).toHaveLength(5); // 5 time steps
+      expect(normalized[0][0]).toHaveLength(1); // 1 feature
+      expect(normalized[0]).toEqual([[1], [2], [3], [4], [5]]);
+    });
+
+    it('should ignore is_multivariate=false for 1D array', () => {
+      const input = [1, 2, 3, 4, 5];
+      const normalized = normalizeInput(input, 'chronos2', false);
+
+      expect(normalized).toHaveLength(1); // batch size 1
+      expect(normalized[0]).toHaveLength(5); // 5 time steps
+      expect(normalized[0][0]).toHaveLength(1); // 1 feature
+      expect(normalized[0]).toEqual([[1], [2], [3], [4], [5]]);
+    });
+  });
+
+  describe('3D array handling with is_multivariate flag', () => {
+    it('should ignore is_multivariate flag for 3D array', () => {
+      const input = [[[1, 2], [3, 4]]];
+      const normalized = normalizeInput(input, 'chronos2', true);
+
+      // is_multivariate should be ignored for 3D arrays
+      expect(normalized).toEqual(input);
+      expect(normalized).toHaveLength(1); // batch size 1
+      expect(normalized[0]).toHaveLength(2); // 2 time steps
+      expect(normalized[0][0]).toHaveLength(2); // 2 features
+    });
+
+    it('should pass through 3D array with is_multivariate=false', () => {
+      const input = [[[1], [2], [3]]];
+      const normalized = normalizeInput(input, 'chronos2', false);
+
+      expect(normalized).toEqual(input);
+      expect(getArrayShape(normalized)).toEqual([1, 3, 1]);
+    });
+  });
+
+  describe('backward compatibility (normalizeInput without new parameters)', () => {
+    it('should work with only input parameter (defaults apply)', () => {
+      const input = [1, 2, 3];
+      const normalized = normalizeInput(input);
+
+      // Should use defaults: model='chronos2', isMultivariate=false
+      expect(normalized).toHaveLength(1);
+      expect(normalized[0]).toHaveLength(3);
+      expect(normalized[0][0]).toHaveLength(1);
+    });
+
+    it('should work with input and model parameters', () => {
+      const input = [[1, 2, 3]];
+      const normalized = normalizeInput(input, 'tirex');
+
+      // Should flatten (TiRex ignores is_multivariate)
+      expect(normalized).toHaveLength(1);
+      expect(normalized[0]).toHaveLength(3);
+    });
   });
 });
 
