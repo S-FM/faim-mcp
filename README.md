@@ -1,6 +1,11 @@
 # FAIM MCP Server
 
+[![npm version](https://badge.fury.io/js/@faim-group%2Fmcp.svg)](https://www.npmjs.com/package/@faim-group/mcp)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 A Model Context Protocol (MCP) server that integrates the FAIM time series forecasting SDK with any MCP-compatible AI assistant, enabling AI-powered forecasting capabilities.
+
+**NPM Package:** [@faim-group/mcp](https://www.npmjs.com/package/@faim-group/mcp)
 
 
 ## Overview
