@@ -51,7 +51,7 @@ export async function forecast(
     }
 
     // Cast to typed request (already validated above)
-    let forecastRequest = request as Partial<ForecastRequest> & { x: unknown; horizon: number };
+    const forecastRequest = request as Partial<ForecastRequest> & { x: unknown; horizon: number };
 
     // Set default model to chronos2 if not provided
     const model = (forecastRequest.model || 'chronos2') as 'chronos2' | 'tirex';
