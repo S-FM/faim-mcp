@@ -115,8 +115,23 @@ export function validateForecastRequest(request: unknown): ErrorResponse | null 
     };
   }
 
+  // Handle case where x is passed as a JSON string (e.g., from Claude Desktop)
+  let xData = req.x;
+  if (typeof xData === 'string') {
+    try {
+      xData = JSON.parse(xData);
+    } catch (e) {
+      return {
+        error_code: 'INVALID_PARAMETER',
+        message: 'x parameter must be an array. If passing as string, it must be valid JSON.',
+        field: 'x',
+        details: `Failed to parse x: ${(e as Error).message}`,
+      };
+    }
+  }
+
   // Validate x is an array-like structure
-  const xError = validateArrayInput(req.x);
+  const xError = validateArrayInput(xData);
   if (xError) {
     return {
       error_code: xError.error_code,

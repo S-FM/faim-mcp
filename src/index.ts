@@ -129,7 +129,7 @@ server.tool(
     x: z
       .any()
       .describe(
-        'Time series data to forecast from. Can be a 1D array (single series), 2D array (multiple series/batch or multivariate per model), or 3D array (batch, sequence, features).'
+        'Time series data to forecast from. MUST be an array, NOT a string. Can be a 1D array [1,2,3,4,5], 2D array [[1,2],[3,4]] (multiple series/batch or multivariate per model), or 3D array [[[1],[2]]] (batch, sequence, features). Never pass x as a JSON string - always pass as an actual array.'
       ),
     horizon: z
       .number()
