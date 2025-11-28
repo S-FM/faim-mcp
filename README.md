@@ -38,6 +38,18 @@ This MCP server currently exposes two foundation time-series models from the FAI
 - npm 10+
 - **FAIM API key**: Register at [https://faim.it.com/](https://faim.it.com/) to get your `FAIM_API_KEY`
 
+### Remote MCP Server — Useful for Workflow Automation Tools like n8n
+
+The MCP server is deployed remotely.
+
+To use the remote MCP server, send requests to the following endpoint:
+
+**https://mcp.faim.it.com**
+
+Provide your FAIM API key using **Bearer authentication**.
+
+### Local MCP server
+
 ### Option 1: Install from npm (Recommended)
 
 Configure your client to use it directly with `npx`:
