@@ -127,6 +127,18 @@ Then use the local path:
 }
 ```
 
+## Examples
+
+### n8n Workflow - Demand Forecasting
+
+An example n8n workflow for demand forecasting is available in `n8n_examples/demand_forecasting.json`. This workflow demonstrates how to integrate the FAIM MCP server with n8n for automated demand forecasting tasks.
+
+To use this example:
+1. Open n8n
+2. Import the workflow from `n8n_examples/demand_forecasting.json`
+3. Configure your FAIM API key in the MCP connection settings
+4. Execute the workflow with your time series data
+
 ## Configuration
 
 ### Environment Variables

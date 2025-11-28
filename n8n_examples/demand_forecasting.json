@@ -1,0 +1,381 @@
+{
+  "name": "Demand Forecasting",
+  "nodes": [
+    {
+      "parameters": {
+        "endpointUrl": "https://mcp.faim.it.com",
+        "authentication": "bearerAuth",
+        "include": "selected",
+        "includeTools": [
+          "forecast"
+        ],
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.mcpClientTool",
+      "typeVersion": 1.2,
+      "position": [
+        256,
+        224
+      ],
+      "id": "5aa3ec9e-f880-4ece-896a-3f43a42e2b7e",
+      "name": "MCP Client",
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "Wnc7Q0kdWDQRVXxM",
+          "name": "Bearer Auth account 3"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -224,
+        0
+      ],
+      "id": "a4433e9b-7651-4e3d-a8a8-a7961d2675e5",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Forecast the time series {{ $items().map(item => item.json.units_sold) }} using the Faim tool with a 15-step horizon and the Chronos2 model.\n\nThe historical dates for these values are:\n{{ $items().map(item => item.json.month_date) }}\n\nReturn ONLY a JSON array of objects. \nEach object must contain exactly these fields:\n- \"month_date\": the forecasted monthly date in YYYY-MM-DD format\n- \"units_sold_forecast\": the corresponding forecast value\n\nThe output must look exactly like this structure (with real forecast values and dates):\n\n[\n  { \"month_date\": \"2025-11-01\", \"units_sold_forecast\": 1 },\n  { \"month_date\": \"2025-12-01\", \"units_sold_forecast\": 2 },\n  { \"month_date\": \"2026-01-01\", \"units_sold_forecast\": 3 }\n]\n\nDo NOT wrap the result in \"output\", \"response\", \"data\", or any other field.\nReturn ONLY the array of objects shown above.",
+        "hasOutputParser": true,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        192,
+        0
+      ],
+      "id": "26fa0870-be72-4d10-954b-7bd405622a1a",
+      "name": "AI Agent",
+      "alwaysOutputData": true,
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-5.1-chat-latest",
+          "mode": "list",
+          "cachedResultName": "gpt-5.1-chat-latest"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        96,
+        224
+      ],
+      "id": "6b27426a-43c5-4e05-9212-b0eede6af2c1",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "1T6wrSXZXja1mxQH",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "[\n  { \"month_date\": \"2025-11-01\", \"units_sold_forecast\": 1 },\n  { \"month_date\": \"2025-12-01\", \"units_sold_forecast\": 2 },\n  { \"month_date\": \"2026-01-01\", \"units_sold_forecast\": 3 }\n]"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        384,
+        224
+      ],
+      "id": "bfac405a-7381-457d-8b07-6df53fdb4869",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "operation": "select",
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "monthly_sales",
+          "mode": "list",
+          "cachedResultName": "monthly_sales"
+        },
+        "returnAll": true,
+        "where": {
+          "values": [
+            {
+              "column": "units_sold",
+              "condition": "IS NOT NULL"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -16,
+        0
+      ],
+      "id": "62580678-0021-4c5b-9b67-44e0c2970dd3",
+      "name": "Select rows from a table",
+      "credentials": {
+        "postgres": {
+          "id": "G7qdHhD44CZeupGW",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "monthly_sales_forecast",
+          "mode": "list",
+          "cachedResultName": "monthly_sales_forecast"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {
+            "units_sold_forecast": 0
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "month_date",
+              "displayName": "month_date",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "units_sold_forecast",
+              "displayName": "units_sold_forecast",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        704,
+        -48
+      ],
+      "id": "05aed2a1-5947-4c9c-898a-a593cbab5096",
+      "name": "Insert rows in a table",
+      "credentials": {
+        "postgres": {
+          "id": "G7qdHhD44CZeupGW",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get the array of rows from \"output\"\nconst rows = $json.output;\n\n// Convert each row into its own n8n item\nreturn rows.map(r => ({\n  json: {\n    month_date: r.month_date,\n    units_sold_forecast: r.units_sold_forecast\n  }\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        496,
+        0
+      ],
+      "id": "20fb7068-7db1-455e-a16a-10622ca994f6",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "content": "### Demand forecasting: Number of items expected to be sold next year.\n",
+        "height": 80,
+        "width": 560
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        0,
+        -176
+      ],
+      "id": "5bbd5c56-6e2f-4f3f-abc4-835092ab2d42",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "Get historical sold items from the database",
+        "height": 80,
+        "width": 150
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -32,
+        -80
+      ],
+      "id": "a4112881-d3a8-4cb8-b609-1fc6822b5660",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "AI Agent to call the FAIM MCP server",
+        "height": 80,
+        "width": 182
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        208,
+        -80
+      ],
+      "id": "12d1422d-88b8-479e-ae14-acdab107ebc7",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "content": "Invoke the remote MCP server to get a forecast",
+        "height": 80,
+        "width": 150
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        224,
+        352
+      ],
+      "id": "ad9a58f0-a18e-495b-8a7b-37e4bac2c84c",
+      "name": "Sticky Note3"
+    },
+    {
+      "parameters": {
+        "content": "Save the forecast in the database",
+        "height": 80,
+        "width": 150
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        672,
+        -128
+      ],
+      "id": "f6c6135e-47f4-4b19-b0c9-c97b75d58793",
+      "name": "Sticky Note4"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "MCP Client": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Select rows from a table",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Select rows from a table": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert rows in a table": {
+      "main": [
+        []
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Insert rows in a table",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "c387555e-5577-42f5-abac-dea3d148acfd",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "e419cb4cbd8e64f4345b07f2a86d5ce6d2fcd24004e64d61e7f3b15e8f58f8a5"
+  },
+  "id": "Yl8EyS9X8YX5fpJY",
+  "tags": []
+}
